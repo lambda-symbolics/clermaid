@@ -1,0 +1,5 @@
+ql bordeaux-threads 2026-01-01
+ql trivial-gray-streams 2026-01-01
+
+git cl-colorist https://github.com/luciusmagn/cl-colorist.git :ref a70749493fbdbe79d6766f254a664119042102b9
+git clinedi https://github.com/lambda-symbolics/clinedi.git :ref 1cc0c3a460c4b9c2a92f0022b17327bb3dc6e997

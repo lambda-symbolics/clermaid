@@ -1,0 +1,120 @@
+#+title: Clermaid
+
+Clermaid renders a bounded, supported subset of Mermaid diagrams as plain
+terminal rows. It is intended for callers that already own terminal output,
+such as cl-termdown.
+
+* Usage
+
+#+begin_src lisp
+(asdf:load-system :clermaid)
+
+(mapc #'write-line
+      (clermaid:render-mermaid
+       "flowchart LR
+          A[Source] --> B[Terminal]"))
+#+end_src
+
+=render-mermaid= accepts =(source &key (width 120) (unicode t))= and returns a
+fresh list of printable strings, one string per terminal row. =width= is a
+terminal-cell limit. =unicode= selects Unicode box and line characters; it does
+not change the source text. The renderer emits no ANSI sequences, performs no
+terminal I/O, and starts no subprocesses. Unicode grapheme and cell-width
+handling is provided by Clinedi.
+
+A caller can handle =clermaid:mermaid-error= and display the original source
+when a diagram is malformed, unsupported, too wide, or exceeds a resource
+limit. A too-narrow width is an error: Clermaid does not scale or truncate
+output. The =retry-with-width= restart is available when a caller wants to
+retry with a different budget.
+
+* Supported Mermaid subset
+
+The parser accepts one diagram header followed by the listed statements. This
+is an intentionally small terminal-oriented subset, not a general Mermaid
+implementation.
+
+** Flowcharts and graphs
+
+Use =flowchart= or =graph=, optionally followed by =TB=, =TD=, =BT=, =LR=,
+or =RL=. Connect nodes with =-->=, =---=, =-.->=, or =-.-=; chains and
+=&=-separated groups are supported. Add edge labels with =-->|label|=.
+Node labels use =[]=, =()=, ={}=, or =([label])= for rectangular, rounded,
+decision, or stadium boxes. Quote label text to include delimiters.
+Use =%%= comments and newlines or semicolons between statements.
+
+** State diagrams
+
+Headers are =stateDiagram= or =stateDiagram-v2=. The supported transition form
+is =left --> right=, with optional labels and aliases. The initial and final
+pseudostate spelling =[*]= is supported. This is the flat transition subset;
+state descriptions and composite-state syntax are not part of this API.
+
+** Class and ER diagrams
+
+Use =classDiagram= with =class Name= declarations and optional multiline
+={ ... }= member blocks. Supported class relations are =<|--=, =--|>=,
+=*--=, =o--=, =..>=, =--..=, =-->=, and =---=.
+
+Use =erDiagram= with =NAME {= attribute blocks and relation statements such
+as =USER ||--o{ ORDER : places=. Left cardinalities are =||=, =|o=, =}o=,
+and =}|=; right cardinalities are =||=, =o|=, =o{=, and =|{=. Join them with
+=--= or =..=. Put member lines and the closing =}= on separate lines.
+
+Class and ER diagrams have connected boxes with member compartments.
+Relation tokens appear beside connections as text annotations rather than
+UML or crow-foot endpoint drawings.
+
+** Sequence diagrams
+
+Use =sequenceDiagram= with =participant ID= or =actor ID= declarations,
+optionally followed by =as Label=. Both render as named header boxes.
+IDs start with a letter, digit, or underscore, followed by letters, digits,
+underscores, or hyphens. Implicit participants follow first-encounter order.
+
+Message arrows are =->=, =-->=, =->>=, =-->>=, =-x=, =--x=, =-)=, and =--)=,
+with an optional =: label=. Messages include reverse-direction replies and
+self-calls. Use nested =alt= / =else=, =loop=, or =opt= frames with matching
+=end=. Notes support =Note over A,B:=, =Note over A:=, =Note left of A:=,
+and =Note right of A:= forms.
+
+* Limits
+
+The implementation rejects input or output beyond these bounds:
+
+- source: 65,536 characters
+- nodes: 64
+- graph edges or sequence events: 128
+- output: 256 rows and 2,048 columns
+
+Individual renderers can also reject a diagram whose required width exceeds the
+requested =width=. Limit failures signal =resource-limit-exceeded=;
+malformed input signals =invalid-diagram=; unsupported families or constructs
+signal =unsupported-syntax=; width failures signal =diagram-too-wide=.
+
+* Public conditions
+
+- =mermaid-error= is the base condition, with =mermaid-error-reason= and
+  =mermaid-error-position= readers.
+- =invalid-diagram= reports malformed input.
+- =unsupported-syntax= reports syntax outside the supported subset.
+- =diagram-too-wide= provides =diagram-too-wide-width= and
+  =diagram-too-wide-required-width=.
+- =resource-limit-exceeded= reports bounded resource failures.
+
+* Tests
+
+#+begin_src sh
+./script/bootstrap
+./script/check
+#+end_src
+
+=script/check= loads this checkout through an isolated source registry and runs
+ASDF's =clermaid/tests= system in a fresh SBCL process.
+
+* Dependencies and license
+
+Clermaid depends on Clinedi for grapheme boundaries and terminal-cell widths.
+Qlot records the exact dependency revisions used by the checks.
+
+The license is COLL-Attribution; see =LICENSE.lisp=.
