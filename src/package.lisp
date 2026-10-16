@@ -5,6 +5,7 @@
                 #:grapheme-next-boundary
                 #:grapheme-cell-width)
   (:export #:render-mermaid
+           #:render-mermaid-spans
            #:mermaid-error
            #:mermaid-error-reason
            #:mermaid-error-position
