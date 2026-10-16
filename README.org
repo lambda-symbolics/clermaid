@@ -22,6 +22,12 @@ not change the source text. The renderer emits no ANSI sequences, performs no
 terminal I/O, and starts no subprocesses. Unicode grapheme and cell-width
 handling is provided by Clinedi.
 
+For colored output, call =render-mermaid-spans= with the same arguments. Each
+row contains =(role . text)= spans: =:mermaid-box=, =:mermaid-edge=,
+=:mermaid-arrow=, =:mermaid-label=, and =:plain=. Choose colors in the caller.
+Roles come from drawing operations, including when labels contain line or
+arrow characters. Concatenating each row's span text gives the plain row.
+
 A caller can handle =clermaid:mermaid-error= and display the original source
 when a diagram is malformed, unsupported, too wide, or exceeds a resource
 limit. A too-narrow width is an error: Clermaid does not scale or truncate
@@ -42,6 +48,11 @@ or =RL=. Connect nodes with =-->=, =---=, =-.->=, or =-.-=; chains and
 Node labels use =[]=, =()=, ={}=, or =([label])= for rectangular, rounded,
 decision, or stadium boxes. Quote label text to include delimiters.
 Use =%%= comments and newlines or semicolons between statements.
+
+Graph layers are centered and reordered to reduce crossings. Connection ports
+follow the order of the opposite nodes. Routing favors fewer crossings before
+shorter paths, then avoids extra bends; Unicode routes use rounded corners
+and directional end caps.
 
 ** State diagrams
 

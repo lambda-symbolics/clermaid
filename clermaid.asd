@@ -11,6 +11,7 @@
                              (:file "protocol")
                              (:file "graph")
                              (:file "graph-layout")
+                             (:file "graph-order")
                              (:file "sequence")
                              (:file "semantic")
                              (:file "render"))))

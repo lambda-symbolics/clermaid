@@ -186,13 +186,19 @@
           do (graph--connect canvas (cons x y) (cons (+ x dx) (+ y dy)) :dashed dashed))))
 
 (defun sequence--box (canvas x y label columns unicode)
-  "Draw a padded three-row note or participant box."
+  "Draw a note or participant frame and its label with separate roles."
   (let ((bar (make-string (- columns 2) :initial-element (if unicode #\─ #\-))))
-    (graph--put-text canvas x y (format nil "~a~a~a" (if unicode "┌" "+") bar (if unicode "┐" "+")))
+    (graph--put-text canvas x y
+                     (format nil "~a~a~a" (if unicode "┌" "+") bar (if unicode "┐" "+"))
+                     :role ':mermaid-box)
     (graph--put-text canvas x (1+ y)
                      (format nil "~a ~a ~a" (if unicode "│" "|")
-                             (pad-text label (- columns 4)) (if unicode "│" "|")))
-    (graph--put-text canvas x (+ y 2) (format nil "~a~a~a" (if unicode "└" "+") bar (if unicode "┘" "+")))))
+                             (pad-text label (- columns 4)) (if unicode "│" "|"))
+                     :role ':mermaid-box)
+    (graph--put-text canvas (+ x 2) (1+ y) label :role ':mermaid-label)
+    (graph--put-text canvas x (+ y 2)
+                     (format nil "~a~a~a" (if unicode "└" "+") bar (if unicode "┘" "+"))
+                     :role ':mermaid-box)))
 
 (defun sequence--head (arrow rightward unicode)
   "Select a destination-facing head for each supported message token."
@@ -270,7 +276,8 @@
                      (sequence--segment canvas turn (1+ y) turn row :dashed dashed)
                      (sequence--segment canvas turn row a row :dashed dashed))
                    (sequence--segment canvas a row b row :dashed dashed))
-               (graph--put-text canvas (if rightward (- b (1- (text-cell-width head))) b) row head)))
+               (graph--put-text canvas (if rightward (- b (1- (text-cell-width head))) b) row head
+                                :role ':mermaid-arrow)))
             (:note
              (let* ((xs (mapcar #'position-of (sequence-event-to event)))
                     (a (reduce #'min xs)) (b (reduce #'max xs))
@@ -282,4 +289,5 @@
                             (otherwise (- (floor (+ a b) 2) (floor note-width 2))))))
                (sequence--box canvas left y label note-width unicode))))
           (incf y (sequence--event-height event))))
-      (check-output-size (graph--canvas-rows canvas unicode) width))))
+      (multiple-value-bind (rows semantic-rows) (graph--canvas-rows canvas unicode)
+        (values (check-output-size rows width) semantic-rows)))))

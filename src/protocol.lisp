@@ -55,8 +55,9 @@
 
 (defgeneric diagram-render (diagram &key width unicode)
   (:documentation
-   "Return a fresh list of printable terminal rows within WIDTH columns.
-UNICODE selects box-drawing characters rather than ASCII. Do not mutate DIAGRAM."))
+   "Return plain terminal rows and corresponding rows of (ROLE . TEXT) spans.
+Both values fit WIDTH terminal cells. UNICODE selects box-drawing characters.
+Do not mutate DIAGRAM."))
 
 ;;;; -- Shared Text Operations --
 
