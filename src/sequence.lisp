@@ -185,10 +185,13 @@
     (otherwise
      2)))
 
-(defun sequence--segment (canvas x1 y1 x2 y2 &key dashed)
-  "Connect two aligned cell coordinates, including both endpoints."
-  (let ((dx (signum (- x2 x1))) (dy (signum (- y2 y1))))
-    (loop for x = x1 then (+ x dx) for y = y1 then (+ y dy)
+(defun sequence--segment (canvas from to &key dashed)
+  "Connect the aligned cells FROM and TO, each a (column . row) cons, including both endpoints."
+  (destructuring-bind ((x1 . y1) (x2 . y2)) (list from to)
+    (loop with dx = (signum (- x2 x1))
+          with dy = (signum (- y2 y1))
+          for x = x1 then (+ x dx)
+          for y = y1 then (+ y dy)
           until (and (= x x2) (= y y2))
           do (graph--connect canvas (cons x y) (cons (+ x dx) (+ y dy)) :dashed dashed))))
 
@@ -253,7 +256,7 @@
                               :columns box-width
                               :unicode unicode)
                (when (> height 3)
-                 (sequence--segment canvas center 3 center (1- height))))
+                 (sequence--segment canvas (cons center 3) (cons center (1- height)))))
       (labels ((position-of (id)
                  (or (gethash id positions)
                      (sequence--fail 'invalid-diagram "Unknown sequence participant.")))
@@ -261,7 +264,7 @@
                (boundary (event row)
                  (let* ((level (sequence-event-depth event))
                         (left (* 2 level)) (right (- columns 1 (* 2 level))))
-                   (sequence--segment canvas left row right row)
+                   (sequence--segment canvas (cons left row) (cons right row))
                    (unless (eq (sequence-event-kind event) :end)
                      (graph--put-text canvas (+ left 2) row :text (sequence--event-caption event))))))
         (dolist (event events)
@@ -274,8 +277,8 @@
             (:end
              (let* ((frame (pop frames))
                     (left (* 2 (first frame))) (right (- columns 1 left)))
-               (sequence--segment canvas left (rest frame) left y)
-               (sequence--segment canvas right (rest frame) right y)
+               (sequence--segment canvas (cons left (rest frame)) (cons left y))
+               (sequence--segment canvas (cons right (rest frame)) (cons right y))
                (boundary event y)))
             (:message
              (let* ((a         (position-of (sequence-event-from event)))
@@ -289,10 +292,10 @@
                (graph--put-text canvas (+ (min a b) 2) y :text (sequence-event-label event))
                (if self
                    (let ((turn (+ a 4)))
-                     (sequence--segment canvas a (1+ y) turn (1+ y) :dashed dashed)
-                     (sequence--segment canvas turn (1+ y) turn row :dashed dashed)
-                     (sequence--segment canvas turn row a row :dashed dashed))
-                   (sequence--segment canvas a row b row :dashed dashed))
+                     (sequence--segment canvas (cons a (1+ y)) (cons turn (1+ y)) :dashed dashed)
+                     (sequence--segment canvas (cons turn (1+ y)) (cons turn row) :dashed dashed)
+                     (sequence--segment canvas (cons turn row) (cons a row) :dashed dashed))
+                   (sequence--segment canvas (cons a row) (cons b row) :dashed dashed))
                (graph--put-text canvas (if rightward (- b (1- (text-cell-width head))) b) row
                                 :text head
                                 :role ':mermaid-arrow)))
