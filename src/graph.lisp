@@ -53,11 +53,13 @@
                  ((not quote)
                   (case c
                     (#\[
-                     (incf square)) (#\]
-                                     (if (plusp square) (decf square) (graph-fail 'invalid-diagram "Unmatched bracket." i)))
+                     (incf square))
+                    (#\]
+                     (if (plusp square) (decf square) (graph-fail 'invalid-diagram "Unmatched bracket." i)))
                     (#\(
-                     (incf paren)) (#\)
-                                    (if (plusp paren) (decf paren) (graph-fail 'invalid-diagram "Unmatched parenthesis." i)))
+                     (incf paren))
+                    (#\)
+                     (if (plusp paren) (decf paren) (graph-fail 'invalid-diagram "Unmatched parenthesis." i)))
                     (#\;
                      (when (and (zerop square) (zerop paren)) (emit i) (setf start (1+ i))))
                     (#\Newline
@@ -77,12 +79,15 @@
     (cond ((zerop (length s))
            :td)
           ((string= s "LR")
-           :lr) ((string= s "RL")
-                 :rl)
+           :lr)
+          ((string= s "RL")
+           :rl)
           ((string= s "TD")
-           :td) ((string= s "TB")
-                 :tb) ((string= s "BT")
-                       :bt)
+           :td)
+          ((string= s "TB")
+           :tb)
+          ((string= s "BT")
+           :bt)
           (t
            (graph-fail 'unsupported-syntax (format nil "Unsupported direction ~a." s))))))
 
@@ -96,11 +101,15 @@
                ((not quote)
                 (if (and (zerop square) (zerop paren) (char= c char))
                     (return i)
-                    (case c (#\[
-                             (incf square)) (#\]
-                                             (decf square)) (#\(
-                                                             (incf paren)) (#\)
-                                                                            (decf paren))))))
+                    (case c
+                      (#\[
+                       (incf square))
+                      (#\]
+                       (decf square))
+                      (#\(
+                       (incf paren))
+                      (#\)
+                       (decf paren))))))
           finally (return nil))))
 
 (defun graph-split-top (text char)
@@ -272,11 +281,15 @@
 
 (defun graph-entity-kind (relation)
   (cond ((search ".." relation)
-         (if (search "--" relation) :dotted-line :dotted)) ((find #\* relation)
-                                                            :composition) ((find #\o relation)
-                                                                           :aggregation) ((find #\| relation)
-                                                                                          :inheritance) (t
-                                                                                                         :association)))
+         (if (search "--" relation) :dotted-line :dotted))
+        ((find #\* relation)
+         :composition)
+        ((find #\o relation)
+         :aggregation)
+        ((find #\| relation)
+         :inheritance)
+        (t
+         :association)))
 
 (defun parse-entity (source family)
   "Parse class or ER declarations, closed member blocks, and relations."

@@ -282,14 +282,20 @@
 
 (defun graph--outside-port (port side)
   "Return the cell immediately outside PORT along SIDE."
-  (cons (+ (first port) (case side (:east
-                                    1) (:west
-                                        -1) (otherwise
-                                             0)))
-        (+ (rest port) (case side (:south
-                                   1) (:north
-                                       -1) (otherwise
-                                            0)))))
+  (cons (+ (first port) (case side
+                          (:east
+                           1)
+                          (:west
+                           -1)
+                          (otherwise
+                           0)))
+        (+ (rest port) (case side
+                         (:south
+                          1)
+                         (:north
+                          -1)
+                         (otherwise
+                          0)))))
 
 (defun graph--route (canvas start end)
   "Minimize crossings first, then route length and bends without merging tracks.
@@ -383,15 +389,22 @@ Each cell has four arrival states so crossings continue straight through."
   "Draw a unit orthogonal connection between FROM and TO."
   (let* ((dx (- (first to) (first from))) (dy (- (rest to) (rest from)))
          (forward  (cond ((plusp dx)
-                          2) ((minusp dx)
-                              8) ((plusp dy)
-                                  4) (t
-                                      1)))
-         (backward (case forward (1
-                                  4) (2
-                                      8) (4
-                                          1) (8
-                                              2))))
+                          2)
+                         ((minusp dx)
+                          8)
+                         ((plusp dy)
+                          4)
+                         (t
+                          1)))
+         (backward (case forward
+                     (1
+                      4)
+                     (2
+                      8)
+                     (4
+                      1)
+                     (8
+                      2))))
     (setf (aref (graph-canvas-lines canvas) (rest from) (first from))
           (logior forward (aref (graph-canvas-lines canvas) (rest from) (first from)))
           (aref (graph-canvas-lines canvas) (rest to) (first to))
@@ -447,27 +460,39 @@ Each cell has four arrival states so crossings continue straight through."
                                                         '(:dotted :dotted-line :dependency))))))
     (setf (aref (graph-canvas-text canvas) (rest start-port) (first start-port))
           (if unicode
-              (ecase from-side (:north
-                                "┴") (:east
-                                      "├") (:south
-                                            "┬") (:west
-                                                  "┤"))
+              (ecase from-side
+                (:north
+                 "┴")
+                (:east
+                 "├")
+                (:south
+                 "┬")
+                (:west
+                 "┤"))
               "+")
           (aref (graph-canvas-roles canvas) (rest start-port) (first start-port)) ':mermaid-edge
           (aref (graph-canvas-text canvas) (rest end-port) (first end-port))
           (if (member (graph-edge-kind edge) '(:line :dotted-line :association :composition :aggregation :inheritance))
-              (if unicode (ecase to-side (:north
-                                          "┴") (:east
-                                                "├") (:south
-                                                      "┬") (:west
-                                                            "┤")) "+")
+              (if unicode
+                  (ecase to-side
+                    (:north
+                     "┴")
+                    (:east
+                     "├")
+                    (:south
+                     "┬")
+                    (:west
+                     "┤"))
+                  "+")
               (ecase to-side
                 (:north
-                 (if unicode "▼" "v")) (:east
-                                        (if unicode "◀" "<"))
+                 (if unicode "▼" "v"))
+                (:east
+                 (if unicode "◀" "<"))
                 (:south
-                 (if unicode "▲" "^")) (:west
-                                        (if unicode "▶" ">"))))
+                 (if unicode "▲" "^"))
+                (:west
+                 (if unicode "▶" ">"))))
           (aref (graph-canvas-roles canvas) (rest end-port) (first end-port))
           (if (member (graph-edge-kind edge) '(:line :dotted-line :association :composition :aggregation :inheritance))
               ':mermaid-edge ':mermaid-arrow))
