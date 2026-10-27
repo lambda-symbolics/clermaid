@@ -121,4 +121,4 @@
       (loop for row from (1+ y) below bottom do (put x row 5) (put right row 5))
       (put x y 6) (put right y 12) (put x bottom 3) (put right bottom 9))
     (graph--put-text canvas (+ x 2) (1+ y)
-                     (graph-node-label (graph-placement-node placement)) :blocked t)))
+                     :text (graph-node-label (graph-placement-node placement)) :blocked t)))

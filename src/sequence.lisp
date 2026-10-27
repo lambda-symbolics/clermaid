@@ -196,15 +196,15 @@
   "Draw a note or participant frame and its label with separate roles."
   (let ((bar (make-string (- columns 2) :initial-element (if unicode #\─ #\-))))
     (graph--put-text canvas x y
-                     (format nil "~a~a~a" (if unicode "┌" "+") bar (if unicode "┐" "+"))
+                     :text (format nil "~a~a~a" (if unicode "┌" "+") bar (if unicode "┐" "+"))
                      :role ':mermaid-box)
     (graph--put-text canvas x (1+ y)
-                     (format nil "~a ~a ~a" (if unicode "│" "|")
-                             (pad-text label (- columns 4)) (if unicode "│" "|"))
+                     :text (format nil "~a ~a ~a" (if unicode "│" "|")
+                                   (pad-text label (- columns 4)) (if unicode "│" "|"))
                      :role ':mermaid-box)
-    (graph--put-text canvas (+ x 2) (1+ y) label :role ':mermaid-label)
+    (graph--put-text canvas (+ x 2) (1+ y) :text label :role ':mermaid-label)
     (graph--put-text canvas x (+ y 2)
-                     (format nil "~a~a~a" (if unicode "└" "+") bar (if unicode "┘" "+"))
+                     :text (format nil "~a~a~a" (if unicode "└" "+") bar (if unicode "┘" "+"))
                      :role ':mermaid-box)))
 
 (defun sequence--head (arrow rightward unicode)
@@ -260,7 +260,7 @@
                         (left (* 2 level)) (right (- columns 1 (* 2 level))))
                    (sequence--segment canvas left row right row)
                    (unless (eq (sequence-event-kind event) :end)
-                     (graph--put-text canvas (+ left 2) row (sequence--event-caption event))))))
+                     (graph--put-text canvas (+ left 2) row :text (sequence--event-caption event))))))
         (dolist (event events)
           (case (sequence-event-kind event)
             (:fragment
@@ -283,14 +283,15 @@
                     (head      (sequence--head arrow rightward unicode))
                     (row       (+ y (if self 3 1)))
                     (dashed    (text-prefix-p "--" arrow)))
-               (graph--put-text canvas (+ (min a b) 2) y (sequence-event-label event))
+               (graph--put-text canvas (+ (min a b) 2) y :text (sequence-event-label event))
                (if self
                    (let ((turn (+ a 4)))
                      (sequence--segment canvas a (1+ y) turn (1+ y) :dashed dashed)
                      (sequence--segment canvas turn (1+ y) turn row :dashed dashed)
                      (sequence--segment canvas turn row a row :dashed dashed))
                    (sequence--segment canvas a row b row :dashed dashed))
-               (graph--put-text canvas (if rightward (- b (1- (text-cell-width head))) b) row head
+               (graph--put-text canvas (if rightward (- b (1- (text-cell-width head))) b) row
+                                :text head
                                 :role ':mermaid-arrow)))
             (:note
              (let* ((xs         (mapcar #'position-of (sequence-event-to event)))

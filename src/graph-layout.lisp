@@ -20,7 +20,7 @@
                       (make-array (list height width) :element-type 'bit :initial-element 0)
                       (make-array (list height width) :element-type 'bit :initial-element 0)))
 
-(defun graph--put-text (canvas x y text &key blocked (role ':mermaid-label))
+(defun graph--put-text (canvas x y &key text blocked (role ':mermaid-label))
   "Place TEXT at cell X,Y and record ROLE without splitting graphemes."
   (loop for start = 0 then end
         while (< start (length text))
@@ -487,7 +487,7 @@ Each cell has four arrival states so crossings continue straight through."
                                 (loop for column from (max 0 (1- x)) below (+ x cells 1)
                                       always (and (null (aref (graph-canvas-text canvas) row column))
                                                   (zerop (aref (graph-canvas-lines canvas) row column)))))
-                       (graph--put-text canvas x row text)
+                       (graph--put-text canvas x row :text text)
                        t))))))
 
 (defun graph--draw-node (canvas placement)
@@ -497,12 +497,12 @@ Each cell has four arrival states so crossings continue straight through."
          (y    (graph-placement-y placement)))
     (loop for row in (graph-placement-rows placement)
           for row-y from y
-          do (graph--put-text canvas x row-y row :blocked t :role ':mermaid-box))
+          do (graph--put-text canvas x row-y :text row :blocked t :role ':mermaid-box))
     (unless (member (graph-node-shape node) '(:initial :final))
-      (graph--put-text canvas (+ x 2) (1+ y) (graph-node-label node) :role ':mermaid-label)
+      (graph--put-text canvas (+ x 2) (1+ y) :text (graph-node-label node) :role ':mermaid-label)
       (loop for member in (reverse (graph-node-members node))
             for member-y from (+ y 3)
-            do (graph--put-text canvas (+ x 2) member-y member :role ':mermaid-label)))))
+            do (graph--put-text canvas (+ x 2) member-y :text member :role ':mermaid-label)))))
 
 (defmethod diagram-render ((diagram graph-diagram) &key (width 120) (unicode t))
   "Render each node once and route actual orthogonal connections around its box."

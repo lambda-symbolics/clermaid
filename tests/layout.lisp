@@ -36,7 +36,7 @@
               (dolist (placement placements)
                 (loop for row in (graph-placement-rows placement)
                       for y from (graph-placement-y placement)
-                      do (graph--put-text canvas (graph-placement-x placement) y row :blocked t)))
+                      do (graph--put-text canvas (graph-placement-x placement) y :text row :blocked t)))
               (dolist (edge (graph-edges diagram))
                 (let ((route (graph--draw-edge canvas edge :placements placements
                                                :horizontal t :unicode t :port-counts ports)))
