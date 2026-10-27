@@ -1,6 +1,7 @@
 (in-package #:clermaid)
 
 (defun graph-test-source (&rest lines)
+  "Join LINES into one Mermaid source with newlines."
   (format nil "~{~a~^~%~}" lines))
 
 (defun graph-tests ()
