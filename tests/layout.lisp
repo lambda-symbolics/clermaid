@@ -32,7 +32,7 @@
           (multiple-value-bind (placements width height) (graph--place-nodes diagram t)
             (let ((canvas (graph--canvas width height))
                   (ports  (graph--assign-edge-ports diagram placements)))
-              (graph--reserve-edge-approaches canvas diagram placements ports)
+              (graph--reserve-edge-approaches canvas diagram :placements placements :ports ports)
               (dolist (placement placements)
                 (loop for row in (graph-placement-rows placement)
                       for y from (graph-placement-y placement)

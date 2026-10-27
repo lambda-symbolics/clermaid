@@ -52,7 +52,7 @@
                          (check (separate-p a b)))))
             (let ((canvas (graph--canvas width height))
                   (ports  (graph--assign-edge-ports diagram placements)))
-              (graph--reserve-edge-approaches canvas diagram placements ports)
+              (graph--reserve-edge-approaches canvas diagram :placements placements :ports ports)
               (dolist (placement placements)
                 (if (typep (graph-placement-node placement) 'graph-subgraph)
                     (graph--draw-subgraph canvas placement)

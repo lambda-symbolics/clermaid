@@ -402,7 +402,7 @@ Each cell has four arrival states so crossings continue straight through."
       (setf (aref (graph-canvas-dashed canvas) (rest from) (first from)) 1
             (aref (graph-canvas-dashed canvas) (rest to) (first to)) 1))))
 
-(defun graph--reserve-edge-approaches (canvas diagram placements ports)
+(defun graph--reserve-edge-approaches (canvas diagram &key placements ports)
   "Keep each edge's approach cells free of every other edge's tracks."
   (dolist (edge (graph-edges diagram))
     (dolist (endpoint '(:from :to))
@@ -518,7 +518,7 @@ Each cell has four arrival states so crossings continue straight through."
           (horizontal  (not (null (member (graph-direction diagram) '(:lr :rl)))))
           (port-counts (graph--assign-edge-ports diagram placements))
           (routes nil) (legend nil))
-      (graph--reserve-edge-approaches canvas diagram placements port-counts)
+      (graph--reserve-edge-approaches canvas diagram :placements placements :ports port-counts)
       (dolist (placement placements)
         (if (typep (graph-placement-node placement) 'graph-subgraph)
             (graph--draw-subgraph canvas placement)
