@@ -192,7 +192,7 @@
           until (and (= x x2) (= y y2))
           do (graph--connect canvas (cons x y) (cons (+ x dx) (+ y dy)) :dashed dashed))))
 
-(defun sequence--box (canvas x y label columns unicode)
+(defun sequence--box (canvas x y &key label columns unicode)
   "Draw a note or participant frame and its label with separate roles."
   (let ((bar (make-string (- columns 2) :initial-element (if unicode #\─ #\-))))
     (graph--put-text canvas x y
@@ -248,7 +248,10 @@
             for left = (+ margin (* index spacing))
             for center = (+ left (floor box-width 2))
             do (setf (gethash (sequence-participant-id p) positions) center)
-               (sequence--box canvas left 0 (sequence-participant-label p) box-width unicode)
+               (sequence--box canvas left 0
+                              :label   (sequence-participant-label p)
+                              :columns box-width
+                              :unicode unicode)
                (when (> height 3)
                  (sequence--segment canvas center 3 center (1- height))))
       (labels ((position-of (id)
@@ -305,7 +308,7 @@
                                    (+ a 2))
                                   (otherwise
                                    (- (floor (+ a b) 2) (floor note-width 2))))))
-               (sequence--box canvas left y label note-width unicode))))
+               (sequence--box canvas left y :label label :columns note-width :unicode unicode))))
           (incf y (sequence--event-height event))))
       (multiple-value-bind (rows semantic-rows) (graph--canvas-rows canvas unicode)
         (values (check-output-size rows width) semantic-rows)))))
