@@ -1,4 +1,5 @@
 (defpackage #:clermaid
+  (:documentation "Render bounded Mermaid diagrams as terminal text.")
   (:use #:cl)
   (:import-from #:clinedi
                 #:text-cell-width
