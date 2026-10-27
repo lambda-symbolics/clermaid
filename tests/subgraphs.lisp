@@ -6,9 +6,13 @@
     (labels ((signals-p (type thunk)
                (handler-case (progn (funcall thunk) nil)
                  (error (condition) (typep condition type))))
+
              (check (value) (incf checks) (assert value))
+
              (parse (&rest lines) (diagram-parse :flowchart (apply #'graph-test-source lines)))
+
              (node (diagram id) (find id (graph-nodes diagram) :key #'graph-node-id :test #'string=))
+
              (inside-p (child parent)
                (and (> (graph-placement-x child) (graph-placement-x parent))
                     (> (graph-placement-y child) (+ 1 (graph-placement-y parent)))
@@ -16,6 +20,7 @@
                        (+ (graph-placement-x parent) (graph-placement-width parent)))
                     (< (+ (graph-placement-y child) (graph-placement-height child))
                        (+ (graph-placement-y parent) (graph-placement-height parent)))))
+
              (separate-p (a b)
                (or (<= (+ (graph-placement-x a) (graph-placement-width a)) (graph-placement-x b))
                    (<= (+ (graph-placement-x b) (graph-placement-width b)) (graph-placement-x a))
@@ -46,7 +51,7 @@
                                  (graph-node-parent (graph-placement-node b)))
                          (check (separate-p a b)))))
             (let ((canvas (graph--canvas width height))
-                  (ports (graph--assign-edge-ports diagram placements)))
+                  (ports  (graph--assign-edge-ports diagram placements)))
               (graph--reserve-edge-approaches canvas diagram placements ports)
               (dolist (placement placements)
                 (if (typep (graph-placement-node placement) 'graph-subgraph)
@@ -76,16 +81,20 @@
             (check (some (lambda (row) (find :mermaid-box row :key #'first)) semantic))
             (check (some (lambda (row) (find :mermaid-arrow row :key #'first)) semantic)))))
       (dolist (direction '("LR" "RL" "TD" "TB" "BT"))
-        (let* ((diagram (parse "flowchart LR" "subgraph G" (format nil "direction ~a" direction)
-                               "A-->B" "end" "X-->G" "B-->Y"))
+        (let* ((diagram    (parse "flowchart LR" "subgraph G" (format nil "direction ~a" direction)
+                                  "A-->B" "end" "X-->G" "B-->Y"))
                (placements (graph--place-subgraphs diagram t))
-               (a (find (node diagram "A") placements :key #'graph-placement-node))
-               (b (find (node diagram "B") placements :key #'graph-placement-node)))
+               (a          (find (node diagram "A") placements :key #'graph-placement-node))
+               (b          (find (node diagram "B") placements :key #'graph-placement-node)))
           (check (case (graph-direction-from-text direction)
-                   (:lr (< (graph-placement-x a) (graph-placement-x b)))
-                   (:rl (> (graph-placement-x a) (graph-placement-x b)))
-                   (:bt (> (graph-placement-y a) (graph-placement-y b)))
-                   (otherwise (< (graph-placement-y a) (graph-placement-y b)))))
+                   (:lr
+                    (< (graph-placement-x a) (graph-placement-x b)))
+                   (:rl
+                    (> (graph-placement-x a) (graph-placement-x b)))
+                   (:bt
+                    (> (graph-placement-y a) (graph-placement-y b)))
+                   (otherwise
+                    (< (graph-placement-y a) (graph-placement-y b)))))
           (check (consp (diagram-render diagram :width 200)))))
       (dolist (title '("Bare title" "\"Quoted title\"" "S[Spaced label]" "S [\"Quoted label\"]"))
         (let ((diagram (parse "graph TD" (format nil "subgraph ~a" title) "A" "end")))
@@ -93,7 +102,7 @@
           (check (consp (diagram-render diagram)))))
       (let* ((diagram (parse "flowchart TD" (format nil "subgraph~cG[Tabbed group]" #\Tab)
                              (format nil "direction~cLR" #\Tab) "A-->B" "end"))
-             (group (node diagram "G")))
+             (group   (node diagram "G")))
         (check (typep group 'graph-subgraph))
         (check (string= (graph-node-label group) "Tabbed group"))
         (check (eq (graph-node-parent (node diagram "A")) group))
@@ -105,11 +114,11 @@
       (dolist (descendant '("A" "H" "I" "B"))
         (dolist (reverse-p '(nil t))
           (dolist (forward-p (if (member descendant '("H" "I") :test #'string=) '(nil t) '(nil)))
-            (let* ((edge (if reverse-p (format nil "~a-->G" descendant)
-                            (format nil "G-->~a" descendant)))
+            (let* ((edge   (if reverse-p (format nil "~a-->G" descendant)
+                              (format nil "G-->~a" descendant)))
                    (scopes '("subgraph G" "A" "subgraph H" "subgraph I" "B"
                              "end" "end" "end"))
-                   (lines (if forward-p (cons edge scopes) (append scopes (list edge)))))
+                   (lines  (if forward-p (cons edge scopes) (append scopes (list edge)))))
               (check (signals-p 'invalid-diagram
                                 (lambda () (apply #'parse "flowchart TD" lines))))))))
       ;; Group endpoints in separate branches remain routable in both directions.
@@ -132,7 +141,7 @@
       (let ((*maximum-nodes* 2))
         (check (signals-p 'resource-limit-exceeded
                           (lambda () (parse "flowchart TD" "subgraph G" "A-->B" "end")))))
-      (let* ((diagram (parse "flowchart TD" "subgraph G" "A" "end"))
+      (let* ((diagram  (parse "flowchart TD" "subgraph G" "A" "end"))
              (required (nth-value 1 (graph--place-subgraphs diagram t))))
         (check (signals-p 'diagram-too-wide
                           (lambda () (diagram-render diagram :width (1- required)))))

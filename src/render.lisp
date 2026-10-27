@@ -13,22 +13,22 @@
                       (not (find character '(#\Tab #\Newline #\Return))))
                  (<= 127 code 159))
           do (error 'invalid-diagram :position position
-                    :reason "Mermaid source contains a terminal control character."))
+                    :reason                    "Mermaid source contains a terminal control character."))
   source)
 
 (defun source--kind (source)
   "Identify the first nonblank, noncomment Mermaid header in SOURCE."
-  (let* ((line (find-if (lambda (line)
-                          (let ((text (trim-text line)))
-                            (and (plusp (length text))
-                                 (not (text-prefix-p "%%" text)))))
-                        (source-lines source)))
+  (let* ((line   (find-if (lambda (line)
+                            (let ((text (trim-text line)))
+                              (and (plusp (length text))
+                                   (not (text-prefix-p "%%" text)))))
+                          (source-lines source)))
          (header (and line (trim-text line)))
-         (word (and header
-                    (subseq header 0 (position-if
-                                      (lambda (character)
-                                        (find character '(#\Space #\Tab #\;)))
-                                      header)))))
+         (word   (and header
+                      (subseq header 0 (position-if
+                                        (lambda (character)
+                                          (find character '(#\Space #\Tab #\;)))
+                                        header)))))
     (cond
       ((null word)
        (error 'invalid-diagram :reason "Mermaid source has no diagram header."))
@@ -60,7 +60,7 @@ The RETRY-WITH-WIDTH restart accepts a different positive column budget."
   (check-type unicode boolean)
   (source--validate source)
   (restart-case
-      (let* ((kind (source--kind source))
+      (let* ((kind    (source--kind source))
              (diagram (diagram-parse kind source)))
         (multiple-value-bind (rows semantic-rows)
             (diagram-render diagram :width width :unicode unicode)

@@ -44,15 +44,24 @@
       (loop for i from 0 below (length source)
             for c = (char source i)
             do (cond
-                 ((and quote escape) (setf escape nil))
-                 ((and quote (char= c #\\)) (setf escape t))
-                 ((char= c #\") (setf quote (not quote)))
+                 ((and quote escape)
+                  (setf escape nil))
+                 ((and quote (char= c #\\))
+                  (setf escape t))
+                 ((char= c #\")
+                  (setf quote (not quote)))
                  ((not quote)
                   (case c
-                    (#\[ (incf square)) (#\] (if (plusp square) (decf square) (graph-fail 'invalid-diagram "Unmatched bracket." i)))
-                    (#\( (incf paren)) (#\) (if (plusp paren) (decf paren) (graph-fail 'invalid-diagram "Unmatched parenthesis." i)))
-                    (#\; (when (and (zerop square) (zerop paren)) (emit i) (setf start (1+ i))))
-                    (#\Newline (when (and (zerop square) (zerop paren)) (emit i) (setf start (1+ i))))))))
+                    (#\[
+                     (incf square)) (#\]
+                                     (if (plusp square) (decf square) (graph-fail 'invalid-diagram "Unmatched bracket." i)))
+                    (#\(
+                     (incf paren)) (#\)
+                                    (if (plusp paren) (decf paren) (graph-fail 'invalid-diagram "Unmatched parenthesis." i)))
+                    (#\;
+                     (when (and (zerop square) (zerop paren)) (emit i) (setf start (1+ i))))
+                    (#\Newline
+                     (when (and (zerop square) (zerop paren)) (emit i) (setf start (1+ i))))))))
       (when quote (graph-fail 'invalid-diagram "Unclosed quote."))
       (when (or (plusp square) (plusp paren)) (graph-fail 'invalid-diagram "Unclosed bracket."))
       (emit (length source))
@@ -65,21 +74,33 @@
 
 (defun graph-direction-from-text (text)
   (let ((s (string-upcase (trim-text text))))
-    (cond ((zerop (length s)) :td)
-          ((string= s "LR") :lr) ((string= s "RL") :rl)
-          ((string= s "TD") :td) ((string= s "TB") :tb) ((string= s "BT") :bt)
-          (t (graph-fail 'unsupported-syntax (format nil "Unsupported direction ~a." s))))))
+    (cond ((zerop (length s))
+           :td)
+          ((string= s "LR")
+           :lr) ((string= s "RL")
+                 :rl)
+          ((string= s "TD")
+           :td) ((string= s "TB")
+                 :tb) ((string= s "BT")
+                       :bt)
+          (t
+           (graph-fail 'unsupported-syntax (format nil "Unsupported direction ~a." s))))))
 
 (defun graph-top-position (text char)
   (let ((quote nil) (square 0) (paren 0))
     (loop for i from 0 below (length text)
           for c = (char text i)
           do (cond
-               ((char= c #\") (setf quote (not quote)))
+               ((char= c #\")
+                (setf quote (not quote)))
                ((not quote)
                 (if (and (zerop square) (zerop paren) (char= c char))
                     (return i)
-                    (case c (#\[ (incf square)) (#\] (decf square)) (#\( (incf paren)) (#\) (decf paren))))))
+                    (case c (#\[
+                             (incf square)) (#\]
+                                             (decf square)) (#\(
+                                                             (incf paren)) (#\)
+                                                                            (decf paren))))))
           finally (return nil))))
 
 (defun graph-split-top (text char)
@@ -98,11 +119,16 @@
     (let* ((id (subseq s 0 end)) (tail (trim-text (subseq s end))) (shape (or forced-shape :rectangle)) (label id) (explicit nil))
       (unless (zerop (length tail))
         (setf explicit t)
-        (cond ((and (text-prefix-p "([" tail) (>= (length tail) 4) (char= (char tail (- (length tail) 2)) #\])) (setf shape :stadium label (subseq tail 2 (- (length tail) 2))))
-              ((char= (char tail 0) #\[) (unless (char= (char tail (1- (length tail))) #\]) (graph-fail 'invalid-diagram "Unclosed node label.")) (setf label (subseq tail 1 (1- (length tail)))))
-              ((char= (char tail 0) #\() (unless (char= (char tail (1- (length tail))) #\)) (graph-fail 'invalid-diagram "Unclosed node label.")) (setf shape :rounded label (subseq tail 1 (1- (length tail)))))
-              ((char= (char tail 0) #\{) (unless (char= (char tail (1- (length tail))) #\}) (graph-fail 'invalid-diagram "Unclosed node label.")) (setf shape :diamond label (subseq tail 1 (1- (length tail)))))
-              (t (graph-fail 'unsupported-syntax (format nil "Unsupported node syntax ~a." tail))))
+        (cond ((and (text-prefix-p "([" tail) (>= (length tail) 4) (char= (char tail (- (length tail) 2)) #\]))
+               (setf shape :stadium label (subseq tail 2 (- (length tail) 2))))
+              ((char= (char tail 0) #\[)
+               (unless (char= (char tail (1- (length tail))) #\]) (graph-fail 'invalid-diagram "Unclosed node label.")) (setf label (subseq tail 1 (1- (length tail)))))
+              ((char= (char tail 0) #\()
+               (unless (char= (char tail (1- (length tail))) #\)) (graph-fail 'invalid-diagram "Unclosed node label.")) (setf shape :rounded label (subseq tail 1 (1- (length tail)))))
+              ((char= (char tail 0) #\{)
+               (unless (char= (char tail (1- (length tail))) #\}) (graph-fail 'invalid-diagram "Unclosed node label.")) (setf shape :diamond label (subseq tail 1 (1- (length tail)))))
+              (t
+               (graph-fail 'unsupported-syntax (format nil "Unsupported node syntax ~a." tail))))
         (setf label (graph-unquote label)))
       (let ((node (gethash id table)))
         (if node
@@ -132,9 +158,12 @@
   (let ((quote nil) (escape nil) (nesting 0))
     (loop for i below (length text) for character = (char text i)
           do (cond
-               (escape (setf escape nil))
-               ((and quote (char= character #\\)) (setf escape t))
-               ((char= character #\") (setf quote (not quote)))
+               (escape
+                (setf escape nil))
+               ((and quote (char= character #\\))
+                (setf escape t))
+               ((char= character #\")
+                (setf quote (not quote)))
                ((not quote)
                 (when (zerop nesting)
                   (dolist (relation *graph-relations*)
@@ -142,8 +171,10 @@
                       (when (and (<= end (length text))
                                  (string= relation text :start2 i :end2 end))
                         (return-from graph-relation-at (values i relation))))))
-                (cond ((find character "[({") (incf nesting))
-                      ((find character "])}") (decf nesting)))))
+                (cond ((find character "[({")
+                       (incf nesting))
+                      ((find character "])}")
+                       (decf nesting)))))
           finally (return (values nil nil)))))
 
 (defun graph-flow-flat (source family &optional groups)
@@ -156,8 +187,8 @@
       (vector-push-extend group order))
     (dolist (entry (rest statements))
       (let* ((*graph-current-group* (and (consp entry) (first entry)))
-             (statement (if (consp entry) (rest entry) entry))
-             (cursor statement))
+             (statement             (if (consp entry) (rest entry) entry))
+             (cursor                statement))
         (loop
           (multiple-value-bind (at relation) (graph-relation-at cursor)
             (if (null at)
@@ -175,15 +206,20 @@
                           (when (>= (length edges) *maximum-edges*)
                             (graph-fail 'resource-limit-exceeded "Too many edges."))
                           (push (make-instance 'graph-edge :from from :to to
-                                               :kind (cond ((string= relation "---") :line)
-                                                           ((string= relation "-.-") :dotted-line)
-                                                           ((string= relation "-.->") :dotted)
-                                                           (t :arrow))
+                                               :kind (cond ((string= relation "---")
+                                                            :line)
+                                                           ((string= relation "-.-")
+                                                            :dotted-line)
+                                                           ((string= relation "-.->")
+                                                            :dotted)
+                                                           (t
+                                                            :arrow))
                                                :label label :relation relation) edges)))
                       (if next (setf cursor right) (return))))))))))
     (make-instance 'graph-diagram :family family :direction direction :nodes (coerce order 'list) :edges (nreverse edges))))
 
 (defmethod diagram-parse ((kind (eql :flowchart)) source) (graph-flow source :flowchart))
+
 (defmethod diagram-parse ((kind (eql :graph)) source) (graph-flow source :graph))
 
 (defun parse-state (source)
@@ -201,14 +237,14 @@
          (setf direction (graph-direction-from-text (subseq statement 9))))
         ((text-prefix-p "state " statement)
          (let* ((rest (trim-text (subseq statement 6)))
-                (as (search " as " rest)))
+                (as   (search " as " rest)))
            (unless as (graph-fail 'unsupported-syntax "State declaration requires an alias."))
            (let ((label (graph-unquote (subseq rest 0 as)))
-                 (id (trim-text (subseq rest (+ as 4)))))
+                 (id    (trim-text (subseq rest (+ as 4)))))
              (graph-node-spec (format nil "~a[~a]" id label) table order))))
         ((search "-->" statement)
-         (let* ((at (search "-->" statement))
-                (left (trim-text (subseq statement 0 at)))
+         (let* ((at    (search "-->" statement))
+                (left  (trim-text (subseq statement 0 at)))
                 (right (trim-text (subseq statement (+ at 3))))
                 (colon (graph-top-position right #\:))
                 (label nil))
@@ -218,9 +254,9 @@
            (let ((from (graph-node-spec (if (string= left "[*]") "__initial__" left)
                                         table order
                                         :forced-shape (when (string= left "[*]") :initial)))
-                 (to (graph-node-spec (if (string= right "[*]") "__final__" right)
-                                      table order
-                                      :forced-shape (when (string= right "[*]") :final))))
+                 (to   (graph-node-spec (if (string= right "[*]") "__final__" right)
+                                        table order
+                                        :forced-shape (when (string= right "[*]") :final))))
              (when (string= left "[*]") (setf (graph-node-label from) "[*]"))
              (when (string= right "[*]") (setf (graph-node-label to) "[*]"))
              (push (make-instance 'graph-edge :from from :to to
@@ -231,10 +267,17 @@
     (unless header (graph-fail 'invalid-diagram "State header is missing."))
     (make-instance 'graph-diagram :family :state :direction direction
                    :nodes (coerce order 'list) :edges (nreverse edges))))
+
 (defmethod diagram-parse ((kind (eql :state)) source) (parse-state source))
 
 (defun graph-entity-kind (relation)
-  (cond ((search ".." relation) (if (search "--" relation) :dotted-line :dotted)) ((find #\* relation) :composition) ((find #\o relation) :aggregation) ((find #\| relation) :inheritance) (t :association)))
+  (cond ((search ".." relation)
+         (if (search "--" relation) :dotted-line :dotted)) ((find #\* relation)
+                                                            :composition) ((find #\o relation)
+                                                                           :aggregation) ((find #\| relation)
+                                                                                          :inheritance) (t
+                                                                                                         :association)))
+
 (defun parse-entity (source family)
   "Parse class or ER declarations, closed member blocks, and relations."
   (let ((table (make-hash-table :test #'equal))
@@ -257,8 +300,8 @@
              (and (eq family :er) (position #\{ statement)
                   (null (nth-value 0 (graph-relation-at statement)))))
          (let* ((declaration (if (eq family :class) (subseq statement 6) statement))
-                (brace (position #\{ declaration))
-                (node (graph-node-spec (if brace (subseq declaration 0 brace) declaration) table order)))
+                (brace       (position #\{ declaration))
+                (node        (graph-node-spec (if brace (subseq declaration 0 brace) declaration) table order)))
            (when brace
              (unless (zerop (length (trim-text (subseq declaration (1+ brace)))))
                (graph-fail 'unsupported-syntax "Member blocks require a separate closing brace."))
@@ -266,7 +309,7 @@
         (t
          (multiple-value-bind (at relation) (graph-relation-at statement)
            (unless at (graph-fail 'unsupported-syntax (format nil "Unsupported entity syntax ~a." statement)))
-           (let* ((left (trim-text (subseq statement 0 at)))
+           (let* ((left  (trim-text (subseq statement 0 at)))
                   (right (trim-text (subseq statement (+ at (length relation)))))
                   (colon (graph-top-position right #\:)) (label nil))
              (when colon
@@ -282,5 +325,7 @@
     (when current (graph-fail 'invalid-diagram "Unclosed entity member block."))
     (make-instance 'graph-diagram :family family :direction :lr
                    :nodes (coerce order 'list) :edges (nreverse edges))))
+
 (defmethod diagram-parse ((kind (eql :class)) source) (parse-entity source :class))
+
 (defmethod diagram-parse ((kind (eql :er)) source) (parse-entity source :er))

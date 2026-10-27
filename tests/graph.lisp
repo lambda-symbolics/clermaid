@@ -9,6 +9,7 @@
     (labels ((check (value)
                (unless value (error "Graph check failed at ~d." checks))
                (incf checks))
+
              (fails (thunk)
                (handler-case (progn (funcall thunk) nil)
                  (mermaid-error () t))))

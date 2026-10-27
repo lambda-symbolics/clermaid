@@ -3,12 +3,12 @@
 ;;;; -- Conditions and Resource Bounds --
 
 (define-condition mermaid-error (error)
-  ((reason :initarg :reason
-           :reader mermaid-error-reason
+  ((reason :initarg       :reason
+           :reader        mermaid-error-reason
            :documentation "A concise explanation of the failed rendering contract.")
-   (position :initarg :position
-             :initform nil
-             :reader mermaid-error-position
+   (position :initarg       :position
+             :initform      nil
+             :reader        mermaid-error-position
              :documentation "The zero-based source offset when it is known."))
   (:documentation "A Mermaid parse or terminal layout failure.")
   (:report (lambda (condition stream)
@@ -23,11 +23,11 @@
   (:documentation "Input outside the explicitly supported Mermaid subset."))
 
 (define-condition diagram-too-wide (mermaid-error)
-  ((width :initarg :width
-          :reader diagram-too-wide-width
+  ((width :initarg       :width
+          :reader        diagram-too-wide-width
           :documentation "The available terminal columns.")
-   (required-width :initarg :required-width
-                   :reader diagram-too-wide-required-width
+   (required-width :initarg       :required-width
+                   :reader        diagram-too-wide-required-width
                    :documentation "The required terminal columns."))
   (:documentation "A diagram cannot fit without losing labels or topology."))
 
@@ -36,14 +36,19 @@
 
 (defparameter *maximum-source-length* 65536
   "The maximum number of characters in one Mermaid source block.")
+
 (defparameter *maximum-nodes* 64
   "The maximum nodes or sequence participants in one diagram.")
+
 (defparameter *maximum-edges* 128
   "The maximum edges or sequence events in one diagram.")
+
 (defparameter *maximum-output-rows* 256
   "The maximum rows in a rendered diagram.")
+
 (defparameter *maximum-output-columns* 2048
   "The absolute maximum columns in a rendered diagram.")
+
 
 ;;;; -- Diagram Protocol --
 
@@ -58,6 +63,7 @@
    "Return plain terminal rows and corresponding rows of (ROLE . TEXT) spans.
 Both values fit WIDTH terminal cells. UNICODE selects box-drawing characters.
 Do not mutate DIAGRAM."))
+
 
 ;;;; -- Shared Text Operations --
 

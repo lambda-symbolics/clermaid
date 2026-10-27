@@ -15,7 +15,7 @@
   (graph--make-canvas width height
                       (make-array (list height width) :initial-element nil)
                       (make-array (list height width) :initial-element ':plain)
-                      (make-array (list height width) :element-type '(unsigned-byte 4)
+                      (make-array (list height width) :element-type     '(unsigned-byte 4)
                                                        :initial-element 0)
                       (make-array (list height width) :element-type 'bit :initial-element 0)
                       (make-array (list height width) :element-type 'bit :initial-element 0)))
@@ -50,18 +50,22 @@
     (unicode
      (aref #(" " "╵" "╶" "╰" "╷" "│" "╭" "├"
               "╴" "╯" "─" "┴" "╮" "┤" "┬" "┼") mask))
-    ((zerop mask) " ")
-    ((zerop (logand mask 10)) "|")
-    ((zerop (logand mask 5)) "-")
-    (t "+")))
+    ((zerop mask)
+     " ")
+    ((zerop (logand mask 10))
+     "|")
+    ((zerop (logand mask 5))
+     "-")
+    (t
+     "+")))
 
 (defun graph--canvas-rows (canvas unicode)
   "Return plain rows and matching role/text rows, trimming unused trailing cells."
-  (let ((rows nil)
+  (let ((rows          nil)
         (semantic-rows nil))
     (dotimes (y (graph-canvas-height canvas))
-      (let ((spans nil)
-            (pieces nil)
+      (let ((spans        nil)
+            (pieces       nil)
             (current-role nil))
         (flet ((flush ()
                  (when pieces
@@ -71,10 +75,13 @@
             (let* ((text (aref (graph-canvas-text canvas) y x))
                    (mask (aref (graph-canvas-lines canvas) y x)))
               (unless (eq text ':continuation)
-                (let ((role (cond (text (aref (graph-canvas-roles canvas) y x))
-                                  ((plusp mask) (if (eq (aref (graph-canvas-roles canvas) y x) ':mermaid-box)
-                                                   ':mermaid-box ':mermaid-edge))
-                                  (t ':plain)))
+                (let ((role  (cond (text
+                                    (aref (graph-canvas-roles canvas) y x))
+                                   ((plusp mask)
+                                    (if (eq (aref (graph-canvas-roles canvas) y x) ':mermaid-box)
+                                       ':mermaid-box ':mermaid-edge))
+                                   (t
+                                    ':plain)))
                       (piece (or text (graph--line-glyph mask unicode
                                                        (= 1 (aref (graph-canvas-dashed canvas) y x))))))
                   (unless (eq current-role role)
@@ -91,6 +98,7 @@
         (push (apply #'concatenate 'string (mapcar #'rest spans)) rows)
         (push spans semantic-rows)))
     (values (nreverse rows) (nreverse semantic-rows))))
+
 
 ;;;; -- Node Placement --
 
@@ -116,21 +124,24 @@
   (when (member (graph-node-shape node) '(:initial :final))
     (return-from graph--node-rows
       (list "   " (if (eq (graph-node-shape node) ':initial)
-                       (if unicode " ● " " * ")
-                       (if unicode " ◉ " "(*)")) "   ")))
-  (let* ((members (reverse (graph-node-members node)))
-         (labels (cons (graph-node-label node) members))
-         (inner (max 1 (- (if horizontal-p self-count port-count) 2)
-                     (loop for text in labels maximize (text-cell-width text))))
-         (shape (graph-node-shape node))
+                      (if unicode " ● " " * ")
+                      (if unicode " ◉ " "(*)")) "   ")))
+  (let* ((members    (reverse (graph-node-members node)))
+         (labels     (cons (graph-node-label node) members))
+         (inner      (max 1 (- (if horizontal-p self-count port-count) 2)
+                          (loop for text in labels maximize (text-cell-width text))))
+         (shape      (graph-node-shape node))
          (horizontal (if unicode #\─ #\-))
-         (vertical (if unicode "│" "|"))
-         (corners (case shape
-                    ((:rounded :stadium) (if unicode '("╭" "╮" "╰" "╯") '("(" ")" "(" ")")))
-                    ((:decision :diamond) '("/" "\\" "\\" "/"))
-                    (otherwise (if unicode '("┌" "┐" "└" "┘") '("+" "+" "+" "+")))))
+         (vertical   (if unicode "│" "|"))
+         (corners    (case shape
+                       ((:rounded :stadium)
+                        (if unicode '("╭" "╮" "╰" "╯") '("(" ")" "(" ")")))
+                       ((:decision :diamond)
+                        '("/" "\\" "\\" "/"))
+                       (otherwise
+                        (if unicode '("┌" "┐" "└" "┘") '("+" "+" "+" "+")))))
          (body-count (+ 1 (length members) (if members 1 0)))
-         (padding (max 0 (- (if horizontal-p port-count self-count) body-count))))
+         (padding    (max 0 (- (if horizontal-p port-count self-count) body-count))))
     (when (or (> (+ inner 4) *maximum-output-columns*)
               (> (+ body-count padding 2) *maximum-output-rows*))
       (error 'resource-limit-exceeded :reason "A graph node exceeds the terminal canvas limit."))
@@ -152,10 +163,10 @@
 
 (defun graph--node-ranks (diagram)
   "Return deterministic topological ranks, breaking cycles in declaration order."
-  (let ((ranks (make-hash-table :test #'eq))
-        (incoming (make-hash-table :test #'eq))
+  (let ((ranks     (make-hash-table :test #'eq))
+        (incoming  (make-hash-table :test #'eq))
         (processed (make-hash-table :test #'eq))
-        (nodes (graph-nodes diagram)))
+        (nodes     (graph-nodes diagram)))
     (dolist (node nodes)
       (setf (gethash node ranks) 0 (gethash node incoming) 0))
     (dolist (edge (graph-edges diagram))
@@ -183,29 +194,29 @@
 
 (defun graph--place-nodes (diagram unicode)
   "Return placements and required canvas dimensions, respecting graph direction."
-  (let* ((horizontal (not (null (member (graph-direction diagram) '(:lr :rl)))))
-         (ranks (graph--node-ranks diagram))
-         (placements (mapcar (lambda (node)
-                               (let* ((degree (loop for edge in (or *graph-sizing-edges* (graph-edges diagram))
-                                                    sum (+ (if (eq node (graph-edge-from edge)) 1 0)
-                                                           (if (eq node (graph-edge-to edge)) 1 0))))
-                                      (self-count (count-if
-                                                   (lambda (edge)
-                                                     (and (eq node (graph-edge-from edge))
-                                                          (eq node (graph-edge-to edge))))
-                                                   (graph-edges diagram)))
-                                      (rows (graph--node-rows node unicode degree
-                                                              :horizontal-p horizontal
-                                                              :self-count (if *graph-sizing-edges* (max degree self-count) self-count)))
-                                      (placement (graph--placement node rows)))
-                                 (setf (graph-placement-width placement) (text-cell-width (first rows))
-                                       (graph-placement-height placement) (length rows))
-                                 placement))
-                             (graph--ordered-nodes diagram ranks)))
-         (maximum (loop for placement in placements
-                        maximize (gethash (graph-placement-node placement) ranks) into rank
-                        finally (return (or rank 0))))
-         (primary 3)
+  (let* ((horizontal        (not (null (member (graph-direction diagram) '(:lr :rl)))))
+         (ranks             (graph--node-ranks diagram))
+         (placements        (mapcar (lambda (node)
+                                      (let* ((degree     (loop for edge in (or *graph-sizing-edges* (graph-edges diagram))
+                                                               sum (+ (if (eq node (graph-edge-from edge)) 1 0)
+                                                                      (if (eq node (graph-edge-to edge)) 1 0))))
+                                             (self-count (count-if
+                                                          (lambda (edge)
+                                                            (and (eq node (graph-edge-from edge))
+                                                                 (eq node (graph-edge-to edge))))
+                                                          (graph-edges diagram)))
+                                             (rows       (graph--node-rows node unicode degree
+                                                                           :horizontal-p horizontal
+                                                                           :self-count   (if *graph-sizing-edges* (max degree self-count) self-count)))
+                                             (placement  (graph--placement node rows)))
+                                        (setf (graph-placement-width placement) (text-cell-width (first rows))
+                                              (graph-placement-height placement) (length rows))
+                                        placement))
+                                    (graph--ordered-nodes diagram ranks)))
+         (maximum           (loop for placement in placements
+                                  maximize (gethash (graph-placement-node placement) ranks) into rank
+                                  finally (return (or rank 0))))
+         (primary           3)
          (secondary-maximum 0))
     (loop for rank from 0 to maximum
           for layer = (remove-if-not
@@ -239,7 +250,7 @@
                (if horizontal
                    (incf (graph-placement-y placement) shift)
                    (incf (graph-placement-x placement) shift))))
-    (let ((canvas-width (if horizontal (max 7 (- primary 5)) (max 7 (- secondary-maximum 3))))
+    (let ((canvas-width  (if horizontal (max 7 (- primary 5)) (max 7 (- secondary-maximum 3))))
           (canvas-height (if horizontal (max 7 (- secondary-maximum 1)) (max 7 (- primary 2)))))
       (when (member (graph-direction diagram) '(:rl :bt))
         (dolist (placement placements)
@@ -249,6 +260,7 @@
               (setf (graph-placement-y placement)
                     (- canvas-height (graph-placement-y placement) (graph-placement-height placement))))))
       (values placements canvas-width canvas-height))))
+
 
 ;;;; -- Orthogonal Edge Routing --
 
@@ -260,31 +272,40 @@
                (graph-node-parent (graph-placement-node to))))
       default
       (cond ((or (<= (+ (graph-placement-x from) (graph-placement-width from)) (graph-placement-x to))
-                 (<= (+ (graph-placement-x to) (graph-placement-width to)) (graph-placement-x from))) t)
+                 (<= (+ (graph-placement-x to) (graph-placement-width to)) (graph-placement-x from)))
+             t)
             ((or (<= (+ (graph-placement-y from) (graph-placement-height from)) (graph-placement-y to))
-                 (<= (+ (graph-placement-y to) (graph-placement-height to)) (graph-placement-y from))) nil)
-            (t default))))
+                 (<= (+ (graph-placement-y to) (graph-placement-height to)) (graph-placement-y from)))
+             nil)
+            (t
+             default))))
 
 (defun graph--outside-port (port side)
   "Return the cell immediately outside PORT along SIDE."
-  (cons (+ (first port) (case side (:east 1) (:west -1) (otherwise 0)))
-        (+ (rest port) (case side (:south 1) (:north -1) (otherwise 0)))))
+  (cons (+ (first port) (case side (:east
+                                    1) (:west
+                                        -1) (otherwise
+                                             0)))
+        (+ (rest port) (case side (:south
+                                   1) (:north
+                                       -1) (otherwise
+                                            0)))))
 
 (defun graph--route (canvas start end)
   "Minimize crossings first, then route length and bends without merging tracks.
 Each cell has four arrival states so crossings continue straight through."
-  (let* ((width (graph-canvas-width canvas))
-         (height (graph-canvas-height canvas))
-         (size (* 4 width height))
+  (let* ((width         (graph-canvas-width canvas))
+         (height        (graph-canvas-height canvas))
+         (size          (* 4 width height))
          (crossing-cost (1+ (* 8 size)))
-         (previous (make-array size :element-type 'fixnum :initial-element -1))
-         (distance (make-array size :element-type 'fixnum :initial-element most-positive-fixnum))
-         (heap (make-array 128 :adjustable t :fill-pointer 0))
-         (start-cell (+ (first start) (* width (rest start))))
-         (end-cell (+ (first end) (* width (rest end))))
-         (start-state (* 4 start-cell))
-         (steps #((1 . 0) (0 . 1) (-1 . 0) (0 . -1)))
-         (found nil))
+         (previous      (make-array size :element-type 'fixnum :initial-element -1))
+         (distance      (make-array size :element-type 'fixnum :initial-element most-positive-fixnum))
+         (heap          (make-array 128 :adjustable t :fill-pointer 0))
+         (start-cell    (+ (first start) (* width (rest start))))
+         (end-cell      (+ (first end) (* width (rest end))))
+         (start-state   (* 4 start-cell))
+         (steps         #((1 . 0) (0 . 1) (-1 . 0) (0 . -1)))
+         (found         nil))
     (labels ((enqueue (cost state)
                (let ((index (vector-push-extend (cons cost state) heap)))
                  (loop while (plusp index)
@@ -295,7 +316,7 @@ Each cell has four arrival states so crossings continue straight through."
 
              (dequeue ()
                (let ((result (aref heap 0))
-                     (last (vector-pop heap)))
+                     (last   (vector-pop heap)))
                  (when (plusp (length heap))
                    (setf (aref heap 0) last)
                    (loop with index = 0
@@ -338,10 +359,10 @@ Each cell has four arrival states so crossings continue straight through."
                                       (equal (cons next-x next-y) end)
                                       (not (gethash (cons next-x next-y)
                                                     (graph-canvas-reserved canvas)))))
-                         do (let* ((mask (aref (graph-canvas-lines canvas) next-y next-x))
-                                   (next (+ next-direction (* 4 (+ next-x (* width next-y)))))
+                         do (let* ((mask      (aref (graph-canvas-lines canvas) next-y next-x))
+                                   (next      (+ next-direction (* 4 (+ next-x (* width next-y)))))
                                    (next-cost (+ cost 4 (if (or (= cell start-cell)
-                                                                               (= direction next-direction)) 0 2)
+                                                                (= direction next-direction)) 0 2)
                                                  (if (zerop mask) 0 crossing-cost))))
                               (when (and (< next-cost (aref distance next))
                                          (or (zerop mask)
@@ -361,8 +382,16 @@ Each cell has four arrival states so crossings continue straight through."
 (defun graph--connect (canvas from to &key dashed)
   "Draw a unit orthogonal connection between FROM and TO."
   (let* ((dx (- (first to) (first from))) (dy (- (rest to) (rest from)))
-         (forward (cond ((plusp dx) 2) ((minusp dx) 8) ((plusp dy) 4) (t 1)))
-         (backward (case forward (1 4) (2 8) (4 1) (8 2))))
+         (forward  (cond ((plusp dx)
+                          2) ((minusp dx)
+                              8) ((plusp dy)
+                                  4) (t
+                                      1)))
+         (backward (case forward (1
+                                  4) (2
+                                      8) (4
+                                          1) (8
+                                              2))))
     (setf (aref (graph-canvas-lines canvas) (rest from) (first from))
           (logior forward (aref (graph-canvas-lines canvas) (rest from) (first from)))
           (aref (graph-canvas-lines canvas) (rest to) (first to))
@@ -377,52 +406,68 @@ Each cell has four arrival states so crossings continue straight through."
   "Keep each edge's approach cells free of every other edge's tracks."
   (dolist (edge (graph-edges diagram))
     (dolist (endpoint '(:from :to))
-      (let* ((node (if (eq endpoint ':from) (graph-edge-from edge) (graph-edge-to edge)))
+      (let* ((node      (if (eq endpoint ':from) (graph-edge-from edge) (graph-edge-to edge)))
              (placement (find node placements :key #'graph-placement-node))
-             (port (gethash (list edge endpoint) ports))
-             (side (cond ((= (first port) (graph-placement-x placement)) ':west)
-                         ((= (rest port) (graph-placement-y placement)) ':north)
-                         ((= (first port) (+ (graph-placement-x placement)
-                                             (graph-placement-width placement) -1)) ':east)
-                         (t ':south))))
+             (port      (gethash (list edge endpoint) ports))
+             (side      (cond ((= (first port) (graph-placement-x placement))
+                               ':west)
+                              ((= (rest port) (graph-placement-y placement))
+                               ':north)
+                              ((= (first port) (+ (graph-placement-x placement)
+                                                  (graph-placement-width placement) -1))
+                               ':east)
+                              (t
+                               ':south))))
         (setf (gethash (graph--outside-port port side) (graph-canvas-reserved canvas)) t)))))
 
 (defun graph--draw-edge (canvas edge &key placements horizontal unicode port-counts)
   "Connect EDGE using assigned ports and record edge and arrow provenance."
-  (let* ((from (find (graph-edge-from edge) placements :key #'graph-placement-node))
-         (to (find (graph-edge-to edge) placements :key #'graph-placement-node))
+  (let* ((from       (find (graph-edge-from edge) placements :key #'graph-placement-node))
+         (to         (find (graph-edge-to edge) placements :key #'graph-placement-node))
          (horizontal (graph--edge-horizontal from to horizontal))
-         (self-p (eq from to))
-         (forward-p (if horizontal
-                        (< (graph-placement-x from) (graph-placement-x to))
-                        (< (graph-placement-y from) (graph-placement-y to))))
-         (from-side (if self-p ':east
-                        (if horizontal (if forward-p ':east ':west)
-                            (if forward-p ':south ':north))))
-         (to-side (if self-p ':north
-                      (if horizontal (if forward-p ':west ':east)
-                          (if forward-p ':north ':south))))
+         (self-p     (eq from to))
+         (forward-p  (if horizontal
+                         (< (graph-placement-x from) (graph-placement-x to))
+                         (< (graph-placement-y from) (graph-placement-y to))))
+         (from-side  (if self-p ':east
+                         (if horizontal (if forward-p ':east ':west)
+                             (if forward-p ':south ':north))))
+         (to-side    (if self-p ':north
+                         (if horizontal (if forward-p ':west ':east)
+                             (if forward-p ':north ':south))))
          (start-port (gethash (list edge ':from) port-counts))
-         (end-port (gethash (list edge ':to) port-counts))
-         (route (append (list start-port)
-                        (graph--route canvas (graph--outside-port start-port from-side)
-                                             (graph--outside-port end-port to-side))
-                        (list end-port))))
+         (end-port   (gethash (list edge ':to) port-counts))
+         (route      (append (list start-port)
+                             (graph--route canvas (graph--outside-port start-port from-side)
+                                                  (graph--outside-port end-port to-side))
+                             (list end-port))))
     (loop for (point next) on route while next
           do (graph--connect canvas point next
                              :dashed (not (null (member (graph-edge-kind edge)
                                                         '(:dotted :dotted-line :dependency))))))
     (setf (aref (graph-canvas-text canvas) (rest start-port) (first start-port))
           (if unicode
-              (ecase from-side (:north "┴") (:east "├") (:south "┬") (:west "┤"))
+              (ecase from-side (:north
+                                "┴") (:east
+                                      "├") (:south
+                                            "┬") (:west
+                                                  "┤"))
               "+")
           (aref (graph-canvas-roles canvas) (rest start-port) (first start-port)) ':mermaid-edge
           (aref (graph-canvas-text canvas) (rest end-port) (first end-port))
           (if (member (graph-edge-kind edge) '(:line :dotted-line :association :composition :aggregation :inheritance))
-              (if unicode (ecase to-side (:north "┴") (:east "├") (:south "┬") (:west "┤")) "+")
+              (if unicode (ecase to-side (:north
+                                          "┴") (:east
+                                                "├") (:south
+                                                      "┬") (:west
+                                                            "┤")) "+")
               (ecase to-side
-                (:north (if unicode "▼" "v")) (:east (if unicode "◀" "<"))
-                (:south (if unicode "▲" "^")) (:west (if unicode "▶" ">"))))
+                (:north
+                 (if unicode "▼" "v")) (:east
+                                        (if unicode "◀" "<"))
+                (:south
+                 (if unicode "▲" "^")) (:west
+                                        (if unicode "▶" ">"))))
           (aref (graph-canvas-roles canvas) (rest end-port) (first end-port))
           (if (member (graph-edge-kind edge) '(:line :dotted-line :association :composition :aggregation :inheritance))
               ':mermaid-edge ':mermaid-arrow))
@@ -448,8 +493,8 @@ Each cell has four arrival states so crossings continue straight through."
 (defun graph--draw-node (canvas placement)
   "Draw the known frame and label regions with separate semantic roles."
   (let* ((node (graph-placement-node placement))
-         (x (graph-placement-x placement))
-         (y (graph-placement-y placement)))
+         (x    (graph-placement-x placement))
+         (y    (graph-placement-y placement)))
     (loop for row in (graph-placement-rows placement)
           for row-y from y
           do (graph--put-text canvas x row-y row :blocked t :role ':mermaid-box))
@@ -469,8 +514,8 @@ Each cell has four arrival states so crossings continue straight through."
     (when (> required-width width)
       (error 'diagram-too-wide :width width :required-width required-width
              :reason "Graph nodes do not fit the available terminal width."))
-    (let ((canvas (graph--canvas required-width required-height))
-          (horizontal (not (null (member (graph-direction diagram) '(:lr :rl)))))
+    (let ((canvas      (graph--canvas required-width required-height))
+          (horizontal  (not (null (member (graph-direction diagram) '(:lr :rl)))))
           (port-counts (graph--assign-edge-ports diagram placements))
           (routes nil) (legend nil))
       (graph--reserve-edge-approaches canvas diagram placements port-counts)
@@ -479,16 +524,16 @@ Each cell has four arrival states so crossings continue straight through."
             (graph--draw-subgraph canvas placement)
             (graph--draw-node canvas placement)))
       (dolist (edge (graph-edges diagram))
-        (push (cons edge (graph--draw-edge canvas edge :placements placements
-                                                       :horizontal horizontal
-                                                       :unicode unicode
+        (push (cons edge (graph--draw-edge canvas edge :placements  placements
+                                                       :horizontal  horizontal
+                                                       :unicode     unicode
                                                        :port-counts port-counts)) routes))
       (dolist (entry (nreverse routes))
-        (let* ((edge (first entry))
+        (let* ((edge     (first entry))
                (relation (and (member (graph-family diagram) '(:class :er))
                               (graph-edge-relation edge)))
-               (label (graph-edge-label edge))
-               (text (format nil "~@[~a~]~:[~; ~]~@[~a~]" relation (and relation label) label)))
+               (label    (graph-edge-label edge))
+               (text     (format nil "~@[~a~]~:[~; ~]~@[~a~]" relation (and relation label) label)))
           (when (plusp (length text))
             (unless (graph--place-edge-label canvas (rest entry) text)
               (push (format nil "~a -> ~a: ~a"
@@ -496,9 +541,9 @@ Each cell has four arrival states so crossings continue straight through."
                             (graph-node-label (graph-edge-to edge)) text)
                     legend)))))
       (multiple-value-bind (rows semantic-rows) (graph--canvas-rows canvas unicode)
-        (let* ((start (or (position-if (lambda (row) (plusp (length row))) rows) 0))
-               (last (position-if (lambda (row) (plusp (length row))) rows :from-end t))
-               (end (if last (1+ last) 0))
+        (let* ((start  (or (position-if (lambda (row) (plusp (length row))) rows) 0))
+               (last   (position-if (lambda (row) (plusp (length row))) rows :from-end t))
+               (end    (if last (1+ last) 0))
                (labels (nreverse legend)))
           (values (check-output-size
                    (append (subseq rows start end) (when labels (cons "" labels))) width)

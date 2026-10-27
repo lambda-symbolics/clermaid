@@ -5,12 +5,14 @@
    (events :initarg :events :reader sequence-events)))
 
 (defstruct (sequence-participant (:constructor make-sequence-participant (id label kind order))) id label kind order)
+
 (defstruct (sequence-event (:constructor make-sequence-event (kind &key from to label arrow depth note side))) kind from to label arrow depth note side)
 
 (defun sequence--fail (class reason &optional position)
   (error class :reason reason :position position))
 
 (defun sequence--trim (s) (trim-text s))
+
 (defun sequence--unquote (s)
   (let ((s (sequence--trim s)))
     (if (and (> (length s) 1) (member (char s 0) '(#\" #\'))
@@ -40,7 +42,7 @@
           (values (append participants (list p)) p)))))
 
 (defun sequence--arrow-at (line limit)
-  (let ((tokens '("-->>" "->>" "-->" "->" "--x" "-x" "--)" "-)") ))
+  (let ((tokens '("-->>" "->>" "-->" "->" "--x" "-x" "--)" "-)")))
     (loop with best = nil
           for token in tokens
           for at = (search token line :end2 limit :test #'char=)
@@ -53,19 +55,19 @@
          (found (sequence--arrow-at line limit)))
     (unless found (sequence--fail 'invalid-diagram "Sequence message has no supported arrow."))
     (let* ((at (first found)) (arrow (rest found))
-           (from (sequence--trim (subseq line 0 at)))
+           (from         (sequence--trim (subseq line 0 at)))
            (suffix-start (+ at (length arrow)))
            (endpoint-end (or colon (length line)))
-           (to (sequence--trim (subseq line suffix-start endpoint-end)))
-           (label (if colon (sequence--trim (subseq line (1+ colon))) "")))
+           (to           (sequence--trim (subseq line suffix-start endpoint-end)))
+           (label        (if colon (sequence--trim (subseq line (1+ colon))) "")))
       (when (or (zerop (length from)) (zerop (length to)))
         (sequence--fail 'invalid-diagram "Sequence message has an empty endpoint."))
       (values from to arrow label))))
 
 (defun sequence--parse-declaration (line)
   (let* ((space (position-if (lambda (c) (member c '(#\Space #\Tab))) line))
-         (kind (string-downcase (subseq line 0 (or space (length line)))))
-         (rest (sequence--trim (if space (subseq line (1+ space)) ""))))
+         (kind  (string-downcase (subseq line 0 (or space (length line)))))
+         (rest  (sequence--trim (if space (subseq line (1+ space)) ""))))
     (unless (member kind '("participant" "actor") :test #'string=)
       (sequence--fail 'invalid-diagram "Invalid participant declaration."))
     (let ((as (search " as " rest :test #'char-equal)))
@@ -77,18 +79,19 @@
                   (if (string= kind "actor") :actor :participant))))))
 
 (defun sequence--parse-note (line)
-  (let* ((rest (sequence--trim (subseq line 4)))
+  (let* ((rest  (sequence--trim (subseq line 4)))
          (colon (position #\: rest)))
     (unless colon (sequence--fail 'invalid-diagram "Note has no text."))
     (let* ((where (sequence--trim (subseq rest 0 colon)))
-           (text (sequence--trim (subseq rest (1+ colon))))
+           (text  (sequence--trim (subseq rest (1+ colon))))
            (parts (cond ((text-prefix-p "over " (string-downcase where))
                          (list :over (sequence--trim (subseq where 5))))
                         ((text-prefix-p "left of " (string-downcase where))
                          (list :left (sequence--trim (subseq where 8))))
                         ((text-prefix-p "right of " (string-downcase where))
                          (list :right (sequence--trim (subseq where 9))))
-                        (t (sequence--fail 'invalid-diagram "Invalid note endpoint.")))))
+                        (t
+                         (sequence--fail 'invalid-diagram "Invalid note endpoint.")))))
       (values (first parts) (second parts) text))))
 
 (defun sequence--unsupported-p (line)
@@ -102,7 +105,8 @@
       (incf line-no)
       (let ((line (sequence--trim raw)))
         (cond
-          ((or (zerop (length line)) (text-prefix-p "%%" line) (text-prefix-p "//" line)) nil)
+          ((or (zerop (length line)) (text-prefix-p "%%" line) (text-prefix-p "//" line))
+           nil)
           ((null header)
            (unless (string-equal line "sequenceDiagram")
              (sequence--fail 'invalid-diagram "Sequence diagram must start with sequenceDiagram."))
@@ -130,16 +134,16 @@
               (push (list type nil) stack)
              (push (make-sequence-event :fragment :note type :label label :depth (1- (length stack))) events)))
           ((string-equal line "else")
-             (unless (and stack (string-equal (first (first stack)) "alt")
-                          (not (second (first stack))))
-               (sequence--fail 'invalid-diagram "else requires an alt without an earlier else." line-no))
-             (setf (second (first stack)) t)
+           (unless (and stack (string-equal (first (first stack)) "alt")
+                        (not (second (first stack))))
+             (sequence--fail 'invalid-diagram "else requires an alt without an earlier else." line-no))
+           (setf (second (first stack)) t)
            (push (make-sequence-event :else :depth (1- (length stack))) events))
           ((text-prefix-p "else " line)
-             (unless (and stack (string-equal (first (first stack)) "alt")
-                          (not (second (first stack))))
-               (sequence--fail 'invalid-diagram "else requires an alt without an earlier else." line-no))
-             (setf (second (first stack)) t)
+           (unless (and stack (string-equal (first (first stack)) "alt")
+                        (not (second (first stack))))
+             (sequence--fail 'invalid-diagram "else requires an alt without an earlier else." line-no))
+           (setf (second (first stack)) t)
            (push (make-sequence-event :else :label (sequence--trim (subseq line 5)) :depth (1- (length stack))) events))
           ((string-equal line "end")
            (unless stack (sequence--fail 'invalid-diagram "Unexpected end." line-no))
@@ -174,9 +178,12 @@
 (defun sequence--event-height (event)
   "Reserve label, connector, and spacing rows before allocating a canvas."
   (case (sequence-event-kind event)
-    (:message (if (string= (sequence-event-from event) (sequence-event-to event)) 5 3))
-    (:note 4)
-    (otherwise 2)))
+    (:message
+     (if (string= (sequence-event-from event) (sequence-event-to event)) 5 3))
+    (:note
+     4)
+    (otherwise
+     2)))
 
 (defun sequence--segment (canvas x1 y1 x2 y2 &key dashed)
   "Connect two aligned cell coordinates, including both endpoints."
@@ -202,37 +209,41 @@
 
 (defun sequence--head (arrow rightward unicode)
   "Select a destination-facing head for each supported message token."
-  (cond ((find #\x arrow) (if unicode "×" "x"))
-        ((find #\) arrow) (if rightward (if unicode "▷" ")") (if unicode "◁" "(")))
-        ((search ">>" arrow) (if rightward (if unicode "▶" ">>") (if unicode "◀" "<<")))
-        (t (if rightward (if unicode "▷" ">") (if unicode "◁" "<")))))
+  (cond ((find #\x arrow)
+         (if unicode "×" "x"))
+        ((find #\) arrow)
+         (if rightward (if unicode "▷" ")") (if unicode "◁" "(")))
+        ((search ">>" arrow)
+         (if rightward (if unicode "▶" ">>") (if unicode "◀" "<<")))
+        (t
+         (if rightward (if unicode "▷" ">") (if unicode "◁" "<")))))
 
 (defmethod diagram-render ((diagram sequence-diagram) &key (width 120) (unicode t))
   "Render lifelines, directional messages, self-calls, notes, and nested frames."
-  (let* ((participants (sequence-participants diagram))
-         (events (sequence-events diagram))
-         (box-width (max 5 (+ 4 (loop for p in participants maximize
-                                      (text-cell-width (sequence-participant-label p))))))
-         (text-width (loop for e in events maximize (text-cell-width (or (sequence-event-label e) "")) into maximum
-                           finally (return (or maximum 0))))
-         (depth (loop for e in events maximize (sequence-event-depth e) into maximum
-                      finally (return (or maximum 0))))
+  (let* ((participants  (sequence-participants diagram))
+         (events        (sequence-events diagram))
+         (box-width     (max 5 (+ 4 (loop for p in participants maximize
+                                          (text-cell-width (sequence-participant-label p))))))
+         (text-width    (loop for e in events maximize (text-cell-width (or (sequence-event-label e) "")) into maximum
+                              finally (return (or maximum 0))))
+         (depth         (loop for e in events maximize (sequence-event-depth e) into maximum
+                              finally (return (or maximum 0))))
          (caption-width (loop for e in events when (member (sequence-event-kind e) '(:fragment :else))
                              maximize (text-cell-width (sequence--event-caption e)) into maximum
                              finally (return (or maximum 0))))
-         (gutter (+ (* 2 depth) (if (plusp caption-width) (+ caption-width 4) 0)))
-         (margin (+ gutter text-width 6))
-         (spacing (+ box-width text-width 6))
-         (columns (+ margin box-width (* (1- (length participants)) spacing) text-width 6))
-         (height (+ 3 (reduce #'+ events :key #'sequence--event-height :initial-value 0))))
+         (gutter        (+ (* 2 depth) (if (plusp caption-width) (+ caption-width 4) 0)))
+         (margin        (+ gutter text-width 6))
+         (spacing       (+ box-width text-width 6))
+         (columns       (+ margin box-width (* (1- (length participants)) spacing) text-width 6))
+         (height        (+ 3 (reduce #'+ events :key #'sequence--event-height :initial-value 0))))
     (check-diagram-size (length participants) (length events))
     (when (> columns width)
       (error 'diagram-too-wide :width width :required-width columns
              :reason "Sequence labels and participants do not fit the available terminal width."))
-    (let ((canvas (graph--canvas columns height))
+    (let ((canvas    (graph--canvas columns height))
           (positions (make-hash-table :test #'equal))
-          (y 3)
-          (frames nil))
+          (y         3)
+          (frames    nil))
       (loop for p in participants for index from 0
             for left = (+ margin (* index spacing))
             for center = (+ left (floor box-width 2))
@@ -252,23 +263,26 @@
                      (graph--put-text canvas (+ left 2) row (sequence--event-caption event))))))
         (dolist (event events)
           (case (sequence-event-kind event)
-            (:fragment (push (cons (sequence-event-depth event) y) frames)
-                       (boundary event y))
-            (:else (boundary event y))
-            (:end (let* ((frame (pop frames))
-                         (left (* 2 (first frame))) (right (- columns 1 left)))
-                    (sequence--segment canvas left (rest frame) left y)
-                    (sequence--segment canvas right (rest frame) right y)
-                    (boundary event y)))
+            (:fragment
+             (push (cons (sequence-event-depth event) y) frames)
+             (boundary event y))
+            (:else
+             (boundary event y))
+            (:end
+             (let* ((frame (pop frames))
+                    (left (* 2 (first frame))) (right (- columns 1 left)))
+               (sequence--segment canvas left (rest frame) left y)
+               (sequence--segment canvas right (rest frame) right y)
+               (boundary event y)))
             (:message
-             (let* ((a (position-of (sequence-event-from event)))
-                    (b (position-of (sequence-event-to event)))
-                    (arrow (sequence-event-arrow event))
-                    (self (= a b))
+             (let* ((a         (position-of (sequence-event-from event)))
+                    (b         (position-of (sequence-event-to event)))
+                    (arrow     (sequence-event-arrow event))
+                    (self      (= a b))
                     (rightward (< a b))
-                    (head (sequence--head arrow rightward unicode))
-                    (row (+ y (if self 3 1)))
-                    (dashed (text-prefix-p "--" arrow)))
+                    (head      (sequence--head arrow rightward unicode))
+                    (row       (+ y (if self 3 1)))
+                    (dashed    (text-prefix-p "--" arrow)))
                (graph--put-text canvas (+ (min a b) 2) y (sequence-event-label event))
                (if self
                    (let ((turn (+ a 4)))
@@ -279,14 +293,17 @@
                (graph--put-text canvas (if rightward (- b (1- (text-cell-width head))) b) row head
                                 :role ':mermaid-arrow)))
             (:note
-             (let* ((xs (mapcar #'position-of (sequence-event-to event)))
+             (let* ((xs         (mapcar #'position-of (sequence-event-to event)))
                     (a (reduce #'min xs)) (b (reduce #'max xs))
-                    (label (sequence-event-label event))
+                    (label      (sequence-event-label event))
                     (note-width (max (+ 4 (text-cell-width label)) (+ 3 (- b a))))
-                    (left (case (sequence-event-side event)
-                            (:left (- a note-width 2))
-                            (:right (+ a 2))
-                            (otherwise (- (floor (+ a b) 2) (floor note-width 2))))))
+                    (left       (case (sequence-event-side event)
+                                  (:left
+                                   (- a note-width 2))
+                                  (:right
+                                   (+ a 2))
+                                  (otherwise
+                                   (- (floor (+ a b) 2) (floor note-width 2))))))
                (sequence--box canvas left y label note-width unicode))))
           (incf y (sequence--event-height event))))
       (multiple-value-bind (rows semantic-rows) (graph--canvas-rows canvas unicode)

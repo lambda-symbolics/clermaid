@@ -17,7 +17,7 @@
   "Parse balanced subgraph scopes before resolving node and group endpoints."
   (let* ((statements (graph-statements source))
          (body nil) (groups nil) (stack nil)
-         (ids (make-hash-table :test #'equal)))
+         (ids        (make-hash-table :test #'equal)))
     (dolist (statement (rest statements))
       (cond
         ((graph-header-p statement "subgraph")
@@ -25,16 +25,16 @@
            (graph-fail 'resource-limit-exceeded "Subgraph nesting is too deep."))
          (when (>= (length groups) *maximum-nodes*)
            (graph-fail 'resource-limit-exceeded "Too many subgraphs."))
-         (let* ((title (trim-text (subseq statement 8)))
+         (let* ((title   (trim-text (subseq statement 8)))
                 (bracket (graph-top-position title #\[))
-                (id (if bracket (trim-text (subseq title 0 bracket)) (graph-unquote title)))
-                (label (if bracket
-                           (progn
-                             (unless (and (plusp (length title))
-                                          (char= (char title (1- (length title))) #\]))
-                               (graph-fail 'invalid-diagram "Invalid subgraph label."))
-                             (graph-unquote (subseq title (1+ bracket) (1- (length title)))))
-                           (graph-unquote title))))
+                (id      (if bracket (trim-text (subseq title 0 bracket)) (graph-unquote title)))
+                (label   (if bracket
+                             (progn
+                               (unless (and (plusp (length title))
+                                            (char= (char title (1- (length title))) #\]))
+                                 (graph-fail 'invalid-diagram "Invalid subgraph label."))
+                               (graph-unquote (subseq title (1+ bracket) (1- (length title)))))
+                             (graph-unquote title))))
            (when (or (zerop (length id)) (gethash id ids))
              (graph-fail 'invalid-diagram "Missing or duplicate subgraph identifier."))
            (when (and bracket (find-if (lambda (c) (find c '(#\Space #\Tab #\"))) id))
@@ -52,7 +52,8 @@
          (let ((value (trim-text (subseq statement 9))))
            (when (zerop (length value)) (graph-fail 'invalid-diagram "Missing subgraph direction."))
            (setf (graph-subgraph-direction (first stack)) (graph-direction-from-text value))))
-        (t (push (cons (first stack) statement) body))))
+        (t
+         (push (cons (first stack) statement) body))))
     (when stack (graph-fail 'invalid-diagram "Unclosed subgraph."))
     (graph--validate-subgraph-edges
      (graph-flow-flat (cons (first statements) (nreverse body)) family (nreverse groups)))))
@@ -66,8 +67,8 @@
 (defun graph--place-subgraphs (diagram unicode)
   "Lay out each scope as indivisible child rectangles, then translate descendants."
   (let ((*graph-sizing-edges* (graph-edges diagram))
-        (*graph-group-sizes* (make-hash-table :test #'eq))
-        (contents (make-hash-table :test #'eq)))
+        (*graph-group-sizes*  (make-hash-table :test #'eq))
+        (contents             (make-hash-table :test #'eq)))
     (labels ((scope (parent direction)
                (let* ((nodes (remove-if-not (lambda (node) (eq (graph-node-parent node) parent))
                                             (graph-nodes diagram)))
@@ -86,12 +87,13 @@
                                      (max (+ height 5) (+ degree 2))))))))
                  (dolist (edge (graph-edges diagram))
                    (let ((from (graph--scope-child (graph-edge-from edge) parent))
-                         (to (graph--scope-child (graph-edge-to edge) parent)))
+                         (to   (graph--scope-child (graph-edge-to edge) parent)))
                      (when (and from to (not (eq from to)))
                        (push (make-instance 'graph-edge :from from :to to) edges))))
                  (graph--place-nodes
                   (make-instance 'graph-diagram :family :flowchart :direction direction
                                  :nodes nodes :edges (nreverse edges)) unicode)))
+
              (expand (placements dx dy)
                (loop for placement in placements
                      for node = (graph-placement-node placement)
@@ -108,10 +110,10 @@
 (defun graph--draw-subgraph (canvas placement)
   "Draw a permeable group frame. Keep its title cells clear of routes."
   (let* ((x (graph-placement-x placement)) (y (graph-placement-y placement))
-         (right (+ x (graph-placement-width placement) -1))
+         (right  (+ x (graph-placement-width placement) -1))
          (bottom (+ y (graph-placement-height placement) -1))
-         (lines (graph-canvas-lines canvas))
-         (roles (graph-canvas-roles canvas)))
+         (lines  (graph-canvas-lines canvas))
+         (roles  (graph-canvas-roles canvas)))
     (flet ((put (column row mask)
              (setf (aref lines row column) mask
                    (aref roles row column) ':mermaid-box)))

@@ -25,7 +25,7 @@
                             (format nil "classDiagram~%Animal <|-- Dog~%class Dog {~%+String name~%+bark()~%}")
                             (format nil "erDiagram~%USER ||--o{ ORDER : places")))
         (dolist (unicode '(t nil))
-          (let* ((rows (render-mermaid source :width 200 :unicode unicode))
+          (let* ((rows     (render-mermaid source :width 200 :unicode unicode))
                  (semantic (render-mermaid-spans source :width 200 :unicode unicode)))
             (check (equal rows (mapcar (lambda (row)
                                         (apply #'concatenate 'string (mapcar #'rest row))) semantic)))
