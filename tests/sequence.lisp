@@ -19,7 +19,7 @@
         (ok (some (lambda (row) (search "reply" row)) rows))
         (ok (some (lambda (row) (search "self" row)) rows))
         (ok (> (length rows) 8)))
-      (let* ((source (format nil "sequenceDiagram~%%% ->> is only a comment~%A->B: left~%Note left of A: note~%Note right of B: other~%Note over A,B: both~%loop outer~%alt first~%A->>B: nested~%else second~%opt inner~%B->A: reverse~%end~%end~%end"))
+      (let* ((source (format nil "sequenceDiagram~%~A ->> is only a comment~%A->B: left~%Note left of A: note~%Note right of B: other~%Note over A,B: both~%loop outer~%alt first~%A->>B: nested~%else second~%opt inner~%B->A: reverse~%end~%end~%end" "%%"))
              (diagram (diagram-parse :sequence source))
              (rows (diagram-render diagram :width 100 :unicode nil)))
         (ok (= 2 (length (sequence-participants diagram))))
