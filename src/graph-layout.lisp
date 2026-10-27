@@ -72,7 +72,8 @@
                    (mask (aref (graph-canvas-lines canvas) y x)))
               (unless (eq text ':continuation)
                 (let ((role (cond (text (aref (graph-canvas-roles canvas) y x))
-                                  ((plusp mask) ':mermaid-edge)
+                                  ((plusp mask) (if (eq (aref (graph-canvas-roles canvas) y x) ':mermaid-box)
+                                                   ':mermaid-box ':mermaid-edge))
                                   (t ':plain)))
                       (piece (or text (graph--line-glyph mask unicode
                                                        (= 1 (aref (graph-canvas-dashed canvas) y x))))))
@@ -97,8 +98,21 @@
   "One node's rendered box and its terminal-cell rectangle."
   node rows (x 0) (y 0) (width 0) (height 0))
 
+(defparameter *graph-group-sizes* nil
+  "Dynamically computed child scope sizes during grouped layout.")
+
+(defparameter *graph-sizing-edges* nil
+  "All edges used to size ports across scope boundaries.")
+
 (defun graph--node-rows (node unicode port-count &key horizontal-p (self-count 0))
   "Return an intact box with port space only on the sides used by this direction."
+  (when (typep node 'graph-subgraph)
+    (let ((size (gethash node *graph-group-sizes*)))
+      (when (or (> (car size) *maximum-output-columns*)
+                (> (cdr size) *maximum-output-rows*))
+        (graph-fail 'resource-limit-exceeded "Subgraph exceeds the terminal canvas limit."))
+      (return-from graph--node-rows
+        (make-list (cdr size) :initial-element (make-string (car size) :initial-element #\Space)))))
   (when (member (graph-node-shape node) '(:initial :final))
     (return-from graph--node-rows
       (list "   " (if (eq (graph-node-shape node) ':initial)
@@ -172,7 +186,7 @@
   (let* ((horizontal (not (null (member (graph-direction diagram) '(:lr :rl)))))
          (ranks (graph--node-ranks diagram))
          (placements (mapcar (lambda (node)
-                               (let* ((degree (loop for edge in (graph-edges diagram)
+                               (let* ((degree (loop for edge in (or *graph-sizing-edges* (graph-edges diagram))
                                                     sum (+ (if (eq node (graph-edge-from edge)) 1 0)
                                                            (if (eq node (graph-edge-to edge)) 1 0))))
                                       (self-count (count-if
@@ -182,7 +196,7 @@
                                                    (graph-edges diagram)))
                                       (rows (graph--node-rows node unicode degree
                                                               :horizontal-p horizontal
-                                                              :self-count self-count))
+                                                              :self-count (if *graph-sizing-edges* (max degree self-count) self-count)))
                                       (placement (graph--placement node rows)))
                                  (setf (graph-placement-width placement) (text-cell-width (first rows))
                                        (graph-placement-height placement) (length rows))
@@ -237,6 +251,19 @@
       (values placements canvas-width canvas-height))))
 
 ;;;; -- Orthogonal Edge Routing --
+
+(defun graph--edge-horizontal (from to default)
+  "Use separated rectangles to select ports in graphs with nested directions."
+  (if (not (or (typep (graph-placement-node from) 'graph-subgraph)
+               (typep (graph-placement-node to) 'graph-subgraph)
+               (graph-node-parent (graph-placement-node from))
+               (graph-node-parent (graph-placement-node to))))
+      default
+      (cond ((or (<= (+ (graph-placement-x from) (graph-placement-width from)) (graph-placement-x to))
+                 (<= (+ (graph-placement-x to) (graph-placement-width to)) (graph-placement-x from))) t)
+            ((or (<= (+ (graph-placement-y from) (graph-placement-height from)) (graph-placement-y to))
+                 (<= (+ (graph-placement-y to) (graph-placement-height to)) (graph-placement-y from))) nil)
+            (t default))))
 
 (defun graph--outside-port (port side)
   "Return the cell immediately outside PORT along SIDE."
@@ -340,6 +367,8 @@ Each cell has four arrival states so crossings continue straight through."
           (logior forward (aref (graph-canvas-lines canvas) (rest from) (first from)))
           (aref (graph-canvas-lines canvas) (rest to) (first to))
           (logior backward (aref (graph-canvas-lines canvas) (rest to) (first to))))
+    (setf (aref (graph-canvas-roles canvas) (rest from) (first from)) ':mermaid-edge
+          (aref (graph-canvas-roles canvas) (rest to) (first to)) ':mermaid-edge)
     (when dashed
       (setf (aref (graph-canvas-dashed canvas) (rest from) (first from)) 1
             (aref (graph-canvas-dashed canvas) (rest to) (first to)) 1))))
@@ -362,6 +391,7 @@ Each cell has four arrival states so crossings continue straight through."
   "Connect EDGE using assigned ports and record edge and arrow provenance."
   (let* ((from (find (graph-edge-from edge) placements :key #'graph-placement-node))
          (to (find (graph-edge-to edge) placements :key #'graph-placement-node))
+         (horizontal (graph--edge-horizontal from to horizontal))
          (self-p (eq from to))
          (forward-p (if horizontal
                         (< (graph-placement-x from) (graph-placement-x to))
@@ -433,7 +463,9 @@ Each cell has four arrival states so crossings continue straight through."
   "Render each node once and route actual orthogonal connections around its box."
   (check-diagram-size (length (graph-nodes diagram)) (length (graph-edges diagram)))
   (multiple-value-bind (placements required-width required-height)
-      (graph--place-nodes diagram unicode)
+      (if (some (lambda (node) (typep node 'graph-subgraph)) (graph-nodes diagram))
+          (graph--place-subgraphs diagram unicode)
+          (graph--place-nodes diagram unicode))
     (when (> required-width width)
       (error 'diagram-too-wide :width width :required-width required-width
              :reason "Graph nodes do not fit the available terminal width."))
@@ -443,7 +475,9 @@ Each cell has four arrival states so crossings continue straight through."
           (routes nil) (legend nil))
       (graph--reserve-edge-approaches canvas diagram placements port-counts)
       (dolist (placement placements)
-        (graph--draw-node canvas placement))
+        (if (typep (graph-placement-node placement) 'graph-subgraph)
+            (graph--draw-subgraph canvas placement)
+            (graph--draw-node canvas placement)))
       (dolist (edge (graph-edges diagram))
         (push (cons edge (graph--draw-edge canvas edge :placements placements
                                                        :horizontal horizontal

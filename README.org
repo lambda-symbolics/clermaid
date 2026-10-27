@@ -49,6 +49,39 @@ Node labels use =[]=, =()=, ={}=, or =([label])= for rectangular, rounded,
 decision, or stadium boxes. Quote label text to include delimiters.
 Use =%%= comments and newlines or semicolons between statements.
 
+Use =subgraph ID[Label]= with a matching =end= to draw a group frame.
+Labels can be quoted, as in =subgraph backend["Data services"]=.
+A bare or quoted title also works: =subgraph Data services= or
+=subgraph "Data services"=. An unlabelled single-word title is also its ID.
+Use explicit single-word IDs when connecting edges to a group.
+
+Nest subgraphs to retain containment. Put =direction LR=, =RL=, =TD=,
+=TB=, or =BT= inside a group to set its local layout direction; groups
+without this statement inherit their parent's direction. Local directions
+apply even when nodes connect across group boundaries. Each node belongs to
+the first subgraph in which it occurs. Later references do not move it.
+Group IDs share the node namespace and must be unique.
+
+Edges can connect nodes across groups, whole groups, and a group and its
+own descendants. Frames permit perpendicular edge crossings; labels and
+node boxes are protected. Each scope is laid out with child groups as whole
+rectangles, so sibling frames and their contents do not overlap. Edge labels
+use the same adjacent-label or legend placement as other graph edges.
+Empty groups are supported.
+
+#+begin_src mermaid
+flowchart LR
+subgraph app["Application"]
+  direction TD
+  A[Request] --> B[Response]
+end
+subgraph storage["Storage"]
+  C[Database]
+end
+B --> C
+app --> storage
+#+end_src
+
 Graph layers are centered and reordered to reduce crossings. Connection ports
 follow the order of the opposite nodes. Routing favors fewer crossings before
 shorter paths, then avoids extra bends; Unicode routes use rounded corners
@@ -94,7 +127,8 @@ and =Note right of A:= forms.
 The implementation rejects input or output beyond these bounds:
 
 - source: 65,536 characters
-- nodes: 64
+- nodes and flowchart subgraphs together: 64
+- nested flowchart subgraphs: 16
 - graph edges or sequence events: 128
 - output: 256 rows and 2,048 columns
 

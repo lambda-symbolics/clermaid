@@ -68,6 +68,7 @@
       (dolist (edge (graph-edges diagram))
         (let* ((from (find (graph-edge-from edge) placements :key #'graph-placement-node))
                (to (find (graph-edge-to edge) placements :key #'graph-placement-node))
+               (horizontal (graph--edge-horizontal from to horizontal))
                (self-p (eq from to))
                (forward-p (if horizontal (< (graph-placement-x from) (graph-placement-x to))
                                         (< (graph-placement-y from) (graph-placement-y to))))

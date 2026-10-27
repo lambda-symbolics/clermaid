@@ -1,11 +1,21 @@
 (in-package #:clermaid)
 
 (defclass graph-node ()
-  ((id :initarg :id :reader graph-node-id)
+  ((parent :initform nil :accessor graph-node-parent)
+   (id :initarg :id :reader graph-node-id)
    (label :initarg :label :accessor graph-node-label)
    (shape :initarg :shape :initform :rectangle :accessor graph-node-shape)
    (members :initarg :members :initform nil :accessor graph-node-members)
    (explicit-label-p :initarg :explicit-label-p :initform nil :accessor graph-node-explicit-label-p)))
+
+(defclass graph-subgraph (graph-node)
+  ((direction :initform nil :accessor graph-subgraph-direction)))
+
+(defparameter *graph-current-group* nil
+  "The flowchart group that contains newly declared nodes.")
+
+(defparameter *maximum-subgraph-depth* 16
+  "The maximum number of nested flowchart subgraphs.")
 
 (defclass graph-edge ()
   ((from :initarg :from :reader graph-edge-from)
@@ -100,6 +110,9 @@
               (setf node (make-instance 'graph-node :id id :label label :shape shape :explicit-label-p explicit))
               (setf (gethash id table) node) (vector-push-extend node order)))
         (when (and node explicit (not (graph-node-explicit-label-p node))) (setf (graph-node-label node) label (graph-node-shape node) shape (graph-node-explicit-label-p node) t))
+        (when (and *graph-current-group* (not (typep node 'graph-subgraph))
+                   (null (graph-node-parent node)))
+          (setf (graph-node-parent node) *graph-current-group*))
         node))))
 
 (defun graph-node-group (text table order)
@@ -131,12 +144,18 @@
                       ((find character "])}") (decf nesting)))))
           finally (return (values nil nil)))))
 
-(defun graph-flow (source family)
-  (let* ((statements (graph-statements source)) (header (first statements)) (table (make-hash-table :test #'equal)) (order (make-array 0 :adjustable t :fill-pointer 0)) (edges nil) (direction :td))
+(defun graph-flow-flat (source family &optional groups)
+  "Resolve scoped flowchart statements against one shared node namespace."
+  (let* ((statements (if (listp source) source (graph-statements source))) (header (first statements)) (table (make-hash-table :test #'equal)) (order (make-array 0 :adjustable t :fill-pointer 0)) (edges nil) (direction :td))
     (unless (and header (or (graph-header-p header "flowchart") (graph-header-p header "graph"))) (graph-fail 'invalid-diagram "Graph header is missing."))
     (setf direction (graph-direction-from-text (subseq header (if (text-prefix-p "flowchart" header) 9 5))))
-    (dolist (statement (rest statements))
-      (let ((cursor statement))
+    (dolist (group groups)
+      (setf (gethash (graph-node-id group) table) group)
+      (vector-push-extend group order))
+    (dolist (entry (rest statements))
+      (let* ((*graph-current-group* (and (consp entry) (car entry)))
+             (statement (if (consp entry) (cdr entry) entry))
+             (cursor statement))
         (loop
           (multiple-value-bind (at relation) (graph-relation-at cursor)
             (if (null at)

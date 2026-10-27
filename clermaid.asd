@@ -11,6 +11,7 @@
                              (:file "protocol")
                              (:file "graph")
                              (:file "graph-layout")
+                             (:file "graph-subgraphs")
                              (:file "graph-order")
                              (:file "sequence")
                              (:file "semantic")
@@ -24,6 +25,7 @@
                 :serial t
                 :components ((:file "graph")
                              (:file "layout")
+                             (:file "subgraphs")
                              (:file "sequence")
                              (:file "render"))))
   :perform (asdf:test-op (operation component)

@@ -65,6 +65,6 @@
 
 (defun run-tests ()
   "Run the standalone library's behavioral tests and return their check count."
-  (let ((checks (+ (graph-tests) (layout-tests) (sequence-tests) (render-tests))))
+  (let ((checks (+ (graph-tests) (layout-tests) (subgraph-tests) (sequence-tests) (render-tests))))
     (format t "~&Clermaid: ~d checks passed.~%" checks)
     checks))
