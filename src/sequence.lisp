@@ -1,25 +1,39 @@
 (in-package #:clermaid)
 
 (defclass sequence-diagram (diagram)
-  ((participants :initarg :participants :reader sequence-participants)
-   (events :initarg :events :reader sequence-events)))
+  ((participants :initarg       :participants
+                 :reader        sequence-participants
+                 :documentation "The participants in order of first mention.")
+   (events :initarg       :events
+           :reader        sequence-events
+           :documentation "The messages, notes, and fragment boundaries in source order."))
+  (:documentation "A parsed sequence diagram."))
 
-(defstruct (sequence-participant (:constructor make-sequence-participant (id label kind order))) id label kind order)
+(defstruct (sequence-participant (:constructor make-sequence-participant (id label kind order)))
+  "A sequence participant with its ID, display label, actor or participant kind, and order of first mention."
+  id label kind order)
 
-(defstruct (sequence-event (:constructor make-sequence-event (kind &key from to label arrow depth note side))) kind from to label arrow depth note side)
+(defstruct (sequence-event (:constructor make-sequence-event (kind &key from to label arrow depth note side)))
+  "A message, note, or fragment boundary in a sequence diagram, with its fragment nesting depth."
+  kind from to label arrow depth note side)
 
 (defun sequence--fail (class reason &optional position)
+  "Signal a Mermaid error of class CLASS with REASON and the optional source POSITION."
   (error class :reason reason :position position))
 
-(defun sequence--trim (s) (trim-text s))
+(defun sequence--trim (s)
+  "Remove surrounding spaces, tabs, and carriage returns from S."
+  (trim-text s))
 
 (defun sequence--unquote (s)
+  "Trim S and remove one pair of matching single or double quotes around it."
   (let ((s (sequence--trim s)))
     (if (and (> (length s) 1) (member (char s 0) '(#\" #\'))
              (char= (char s 0) (char s (1- (length s)))))
         (subseq s 1 (1- (length s))) s)))
 
 (defun sequence--find (participants id)
+  "Return the participant in PARTICIPANTS whose ID is ID, or NIL."
   (find id participants :key #'sequence-participant-id :test #'string=))
 
 (defun sequence--validate-id (id)
@@ -31,6 +45,10 @@
     (sequence--fail 'unsupported-syntax "Participant IDs must contain letters, digits, underscores, or hyphens.")))
 
 (defun sequence--ensure (participants id counter &key label kind)
+  "Return PARTICIPANTS with a participant for ID, and that participant as a second value.
+
+A new participant takes order COUNTER. LABEL and KIND replace the stored values
+when given."
   (sequence--validate-id id)
   (let ((p (sequence--find participants id)))
     (if p
@@ -42,6 +60,7 @@
           (values (append participants (list p)) p)))))
 
 (defun sequence--arrow-at (line limit)
+  "Return the earliest arrow token in LINE before LIMIT as (INDEX . TOKEN), or NIL."
   (let ((tokens '("-->>" "->>" "-->" "->" "--x" "-x" "--)" "-)")))
     (loop with best = nil
           for token in tokens
@@ -50,6 +69,7 @@
           finally (return best))))
 
 (defun sequence--split-arrow (line)
+  "Return the source, target, arrow token, and label of the message LINE as four values."
   (let* ((colon (position #\: line))
          (limit (or colon (length line)))
          (found (sequence--arrow-at line limit)))
@@ -65,6 +85,7 @@
       (values from to arrow label))))
 
 (defun sequence--parse-declaration (line)
+  "Return the ID, label, and kind of the participant or actor declaration LINE as three values."
   (let* ((space (position-if (lambda (c) (member c '(#\Space #\Tab))) line))
          (kind  (string-downcase (subseq line 0 (or space (length line)))))
          (rest  (sequence--trim (if space (subseq line (1+ space)) ""))))
@@ -79,6 +100,7 @@
                   (if (string= kind "actor") :actor :participant))))))
 
 (defun sequence--parse-note (line)
+  "Return the side, comma-separated participant names, and text of the note LINE as three values."
   (let* ((rest  (sequence--trim (subseq line 4)))
          (colon (position #\: rest)))
     (unless colon (sequence--fail 'invalid-diagram "Note has no text."))
@@ -100,6 +122,7 @@
                    '("activate " "deactivate " "par " "critical " "break " "rect " "autonumber" "link ")))))
 
 (defun sequence--parse (source)
+  "Parse SOURCE into a sequence diagram, checking fragment nesting and size limits."
   (let ((participants nil) (events nil) (stack nil) (order 0) (line-no 0) (header nil))
     (dolist (raw (source-lines source))
       (incf line-no)
@@ -161,6 +184,7 @@
     (make-instance 'sequence-diagram :participants participants :events (nreverse events))))
 
 (defmethod diagram-parse ((kind (eql :sequence)) source)
+  "Parse SOURCE as a Mermaid sequence diagram."
   (declare (ignore kind))
   (when (> (length source) *maximum-source-length*)
     (sequence--fail 'resource-limit-exceeded "Source exceeds the configured limit."))
