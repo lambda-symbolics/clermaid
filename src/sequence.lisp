@@ -44,7 +44,7 @@
     (loop with best = nil
           for token in tokens
           for at = (search token line :end2 limit :test #'char=)
-          when (and at (or (null best) (< at (car best)))) do (setf best (cons at token))
+          when (and at (or (null best) (< at (first best)))) do (setf best (cons at token))
           finally (return best))))
 
 (defun sequence--split-arrow (line)
@@ -52,7 +52,7 @@
          (limit (or colon (length line)))
          (found (sequence--arrow-at line limit)))
     (unless found (sequence--fail 'invalid-diagram "Sequence message has no supported arrow."))
-    (let* ((at (car found)) (arrow (cdr found))
+    (let* ((at (first found)) (arrow (rest found))
            (from (sequence--trim (subseq line 0 at)))
            (suffix-start (+ at (length arrow)))
            (endpoint-end (or colon (length line)))

@@ -155,8 +155,8 @@
       (setf (gethash (graph-node-id group) table) group)
       (vector-push-extend group order))
     (dolist (entry (rest statements))
-      (let* ((*graph-current-group* (and (consp entry) (car entry)))
-             (statement (if (consp entry) (cdr entry) entry))
+      (let* ((*graph-current-group* (and (consp entry) (first entry)))
+             (statement (if (consp entry) (rest entry) entry))
              (cursor statement))
         (loop
           (multiple-value-bind (at relation) (graph-relation-at cursor)

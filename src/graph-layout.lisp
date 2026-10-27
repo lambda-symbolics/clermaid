@@ -108,11 +108,11 @@
   "Return an intact box with port space only on the sides used by this direction."
   (when (typep node 'graph-subgraph)
     (let ((size (gethash node *graph-group-sizes*)))
-      (when (or (> (car size) *maximum-output-columns*)
-                (> (cdr size) *maximum-output-rows*))
+      (when (or (> (first size) *maximum-output-columns*)
+                (> (rest size) *maximum-output-rows*))
         (graph-fail 'resource-limit-exceeded "Subgraph exceeds the terminal canvas limit."))
       (return-from graph--node-rows
-        (make-list (cdr size) :initial-element (make-string (car size) :initial-element #\Space)))))
+        (make-list (rest size) :initial-element (make-string (first size) :initial-element #\Space)))))
   (when (member (graph-node-shape node) '(:initial :final))
     (return-from graph--node-rows
       (list "   " (if (eq (graph-node-shape node) ':initial)
