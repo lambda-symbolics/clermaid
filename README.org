@@ -149,15 +149,21 @@ signal =unsupported-syntax=; width failures signal =diagram-too-wide=.
   =diagram-too-wide-required-width=.
 - =resource-limit-exceeded= reports bounded resource failures.
 
-* Tests
+* Development
 
 #+begin_src sh
 ./script/bootstrap
 ./script/check
+./script/check --fix
 #+end_src
 
-=script/check= loads this checkout through an isolated source registry and runs
-ASDF's =clermaid/tests= system in a fresh SBCL process.
+=./script/check= loads this checkout through an isolated source registry and
+runs ASDF's =clermaid/tests= system in a fresh SBCL process. It then checks the
+source with [[https://github.com/lambda-symbolics/cheque][cheque]] as
+=cheque.sexp= configures it. =--fix= skips the tests and repairs what cheque can
+repair. cheque and its tools are development dependencies: =checks/qlfile=
+lists them, and the check installs them on first use into
+=~/.cache/cheque/tools/=.
 
 * Dependencies and license
 
