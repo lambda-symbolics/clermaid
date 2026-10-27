@@ -13,9 +13,23 @@ fi
 CL_SOURCE_REGISTRY="(:source-registry (:tree \"$root/\") :ignore-inherited-configuration)"
 export CL_SOURCE_REGISTRY
 
-exec sbcl --noinform --no-userinit --no-sysinit --non-interactive \
-  --load "$root/.qlot/setup.lisp" \
-  --eval '(require :asdf)' \
-  --eval '(asdf:load-asd (truename "clermaid.asd"))' \
-  --eval '(unless (equal (truename (asdf:system-source-file "clermaid")) (truename "clermaid.asd")) (error "Resolved clermaid outside this checkout: ~A" (asdf:system-source-file "clermaid")))' \
-  --eval '(asdf:test-system "clermaid")'
+tests=0
+case " $* " in
+  *" --fix "*) ;;
+  *)
+    sbcl --noinform --no-userinit --no-sysinit --non-interactive \
+      --load "$root/.qlot/setup.lisp" \
+      --eval '(require :asdf)' \
+      --eval '(asdf:load-asd (truename "clermaid.asd"))' \
+      --eval '(unless (equal (truename (asdf:system-source-file "clermaid")) (truename "clermaid.asd")) (error "Resolved clermaid outside this checkout: ~A" (asdf:system-source-file "clermaid")))' \
+      --eval '(asdf:test-system "clermaid")' || tests=$?
+    ;;
+esac
+
+source=0
+sbcl --script "$root/script/check-source.lisp" "$@" || source=$?
+
+if [ "$tests" -ne 0 ]; then
+  exit "$tests"
+fi
+exit "$source"
