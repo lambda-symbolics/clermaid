@@ -1,15 +1,34 @@
 (in-package #:clermaid)
 
 (defclass graph-node ()
-  ((parent :initform nil :accessor graph-node-parent)
-   (id :initarg :id :reader graph-node-id)
-   (label :initarg :label :accessor graph-node-label)
-   (shape :initarg :shape :initform :rectangle :accessor graph-node-shape)
-   (members :initarg :members :initform nil :accessor graph-node-members)
-   (explicit-label-p :initarg :explicit-label-p :initform nil :accessor graph-node-explicit-label-p)))
+  ((parent :initform      nil
+           :accessor      graph-node-parent
+           :documentation "The subgraph that contains this node, or NIL at the top level.")
+   (id :initarg       :id
+       :reader        graph-node-id
+       :documentation "The source identifier that names this node.")
+   (label :initarg       :label
+          :accessor      graph-node-label
+          :documentation "The text drawn inside the node.")
+   (shape :initarg       :shape
+          :initform      ':rectangle
+          :accessor      graph-node-shape
+          :documentation "The frame shape keyword, such as :RECTANGLE, :ROUNDED, or :DIAMOND.")
+   (members :initarg       :members
+            :initform      nil
+            :accessor      graph-node-members
+            :documentation "The class or entity member lines, newest first.")
+   (explicit-label-p :initarg       :explicit-label-p
+                     :initform      nil
+                     :accessor      graph-node-explicit-label-p
+                     :documentation "True when the source gives the node its own label."))
+  (:documentation "A graph diagram node with its label, shape, and enclosing subgraph."))
 
 (defclass graph-subgraph (graph-node)
-  ((direction :initform nil :accessor graph-subgraph-direction)))
+  ((direction :initform      nil
+              :accessor      graph-subgraph-direction
+              :documentation "The layout direction the subgraph declares, or NIL to use the enclosing one."))
+  (:documentation "A flowchart subgraph, drawn as a frame around the nodes it contains."))
 
 (defparameter *graph-current-group* nil
   "The flowchart group that contains newly declared nodes.")
@@ -18,19 +37,44 @@
   "The maximum number of nested flowchart subgraphs.")
 
 (defclass graph-edge ()
-  ((from :initarg :from :reader graph-edge-from)
-   (to :initarg :to :reader graph-edge-to)
-   (kind :initarg :kind :initform :arrow :reader graph-edge-kind)
-   (label :initarg :label :initform nil :reader graph-edge-label)
-   (relation :initarg :relation :initform nil :reader graph-edge-relation)))
+  ((from :initarg       :from
+         :reader        graph-edge-from
+         :documentation "The node the edge starts at.")
+   (to :initarg       :to
+       :reader        graph-edge-to
+       :documentation "The node the edge ends at.")
+   (kind :initarg       :kind
+         :initform      ':arrow
+         :reader        graph-edge-kind
+         :documentation "The line and head style keyword, such as :ARROW, :DOTTED, or :INHERITANCE.")
+   (label :initarg       :label
+          :initform      nil
+          :reader        graph-edge-label
+          :documentation "The text drawn along the edge, or NIL.")
+   (relation :initarg       :relation
+             :initform      nil
+             :reader        graph-edge-relation
+             :documentation "The relation token as written in the source, such as \"-->\"."))
+  (:documentation "A connection between two graph diagram nodes."))
 
 (defclass graph-diagram (diagram)
-  ((family :initarg :family :reader graph-family)
-   (direction :initarg :direction :initform :td :reader graph-direction)
-   (nodes :initarg :nodes :reader graph-nodes)
-   (edges :initarg :edges :reader graph-edges)))
+  ((family :initarg       :family
+           :reader        graph-family
+           :documentation "The diagram family keyword, one of :FLOWCHART, :GRAPH, :STATE, :CLASS, or :ER.")
+   (direction :initarg       :direction
+              :initform      ':td
+              :reader        graph-direction
+              :documentation "The layout direction keyword, such as :TD or :LR.")
+   (nodes :initarg       :nodes
+          :reader        graph-nodes
+          :documentation "The nodes and subgraphs in declaration order.")
+   (edges :initarg       :edges
+          :reader        graph-edges
+          :documentation "The edges in source order."))
+  (:documentation "A parsed flowchart, state, class, or entity relationship diagram."))
 
 (defun graph-fail (type reason &optional position)
+  "Signal a Mermaid error of class TYPE with REASON and the optional source POSITION."
   (error type :reason reason :position position))
 
 (defun graph-statements (source)
@@ -70,11 +114,13 @@
       (nreverse result))))
 
 (defun graph-header-p (text prefix)
+  "Return true when TEXT is the keyword PREFIX alone or followed by a space or tab."
   (and (text-prefix-p prefix text)
        (or (= (length text) (length prefix))
            (find (char text (length prefix)) '(#\Space #\Tab)))))
 
 (defun graph-direction-from-text (text)
+  "Return the direction keyword TEXT names, or :TD when TEXT is blank."
   (let ((s (string-upcase (trim-text text))))
     (cond ((zerop (length s))
            :td)
@@ -92,6 +138,7 @@
            (graph-fail 'unsupported-syntax (format nil "Unsupported direction ~a." s))))))
 
 (defun graph-top-position (text char)
+  "Return the index of the first CHAR in TEXT outside quotes, brackets, and parentheses, or NIL."
   (let ((quote nil) (square 0) (paren 0))
     (loop for i from 0 below (length text)
           for c = (char text i)
@@ -113,15 +160,21 @@
           finally (return nil))))
 
 (defun graph-split-top (text char)
+  "Split TEXT at each CHAR outside quotes, brackets, and parentheses."
   (let ((at (graph-top-position text char)))
     (if at (cons (subseq text 0 at) (graph-split-top (subseq text (1+ at)) char)) (list text))))
 
 (defun graph-unquote (text)
+  "Trim TEXT and remove one pair of surrounding double quotes."
   (let ((s (trim-text text)))
     (if (and (> (length s) 1) (char= (char s 0) #\") (char= (char s (1- (length s))) #\"))
         (subseq s 1 (1- (length s))) s)))
 
 (defun graph-node-spec (text table order &key forced-shape)
+  "Return the node TEXT declares, creating it in TABLE and ORDER on first use.
+
+TEXT is an identifier with an optional shaped label. FORCED-SHAPE overrides the
+default rectangle. A later explicit label replaces an implicit one."
   (let* ((s (trim-text text)) (end 0))
     (loop while (and (< end (length s)) (not (find (char s end) '(#\Space #\Tab #\[ #\] #\( #\) #\{ #\})))) do (incf end))
     (when (zerop end) (graph-fail 'invalid-diagram "Missing node identifier."))
@@ -153,6 +206,7 @@
         node))))
 
 (defun graph-node-group (text table order)
+  "Return the nodes TEXT declares, one for each part joined by &."
   (mapcar (lambda (part) (graph-node-spec part table order)) (graph-split-top text #\&)))
 
 (defparameter *graph-relations*
@@ -160,7 +214,8 @@
                 append (loop for line in '("--" "..")
                              append (loop for right in '("||" "o|" "o{" "|{")
                                           collect (concatenate 'string left line right))))
-          '("<|--" "--|>" "*--" "o--" "..>" "--.." "-.->" "-.-" "-->" "---")))
+          '("<|--" "--|>" "*--" "o--" "..>" "--.." "-.->" "-.-" "-->" "---"))
+  "The relation tokens of flowchart, class, and ER statements, tried in this order at each position.")
 
 (defun graph-relation-at (text)
   "Return the first relation outside quoted or bracketed node labels."
@@ -227,11 +282,16 @@
                       (if next (setf cursor right) (return))))))))))
     (make-instance 'graph-diagram :family family :direction direction :nodes (coerce order 'list) :edges (nreverse edges))))
 
-(defmethod diagram-parse ((kind (eql :flowchart)) source) (graph-flow source :flowchart))
+(defmethod diagram-parse ((kind (eql :flowchart)) source)
+  "Parse SOURCE as a Mermaid flowchart."
+  (graph-flow source :flowchart))
 
-(defmethod diagram-parse ((kind (eql :graph)) source) (graph-flow source :graph))
+(defmethod diagram-parse ((kind (eql :graph)) source)
+  "Parse SOURCE as a Mermaid graph."
+  (graph-flow source :graph))
 
 (defun parse-state (source)
+  "Parse SOURCE as a Mermaid state diagram."
   (let ((table (make-hash-table :test #'equal))
         (order (make-array 0 :adjustable t :fill-pointer 0))
         (edges nil) (header nil) (direction :td))
@@ -277,9 +337,12 @@
     (make-instance 'graph-diagram :family :state :direction direction
                    :nodes (coerce order 'list) :edges (nreverse edges))))
 
-(defmethod diagram-parse ((kind (eql :state)) source) (parse-state source))
+(defmethod diagram-parse ((kind (eql :state)) source)
+  "Parse SOURCE as a Mermaid state diagram."
+  (parse-state source))
 
 (defun graph-entity-kind (relation)
+  "Return the edge kind keyword for the class diagram RELATION token."
   (cond ((search ".." relation)
          (if (search "--" relation) :dotted-line :dotted))
         ((find #\* relation)
@@ -339,6 +402,10 @@
     (make-instance 'graph-diagram :family family :direction :lr
                    :nodes (coerce order 'list) :edges (nreverse edges))))
 
-(defmethod diagram-parse ((kind (eql :class)) source) (parse-entity source :class))
+(defmethod diagram-parse ((kind (eql :class)) source)
+  "Parse SOURCE as a Mermaid class diagram."
+  (parse-entity source :class))
 
-(defmethod diagram-parse ((kind (eql :er)) source) (parse-entity source :er))
+(defmethod diagram-parse ((kind (eql :er)) source)
+  "Parse SOURCE as a Mermaid entity relationship diagram."
+  (parse-entity source :er))
