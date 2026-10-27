@@ -59,7 +59,9 @@
       (nreverse result))))
 
 (defun graph-header-p (text prefix)
-  (or (string= text prefix) (text-prefix-p (concatenate 'string prefix " ") text)))
+  (and (text-prefix-p prefix text)
+       (or (= (length text) (length prefix))
+           (find (char text (length prefix)) '(#\Space #\Tab)))))
 
 (defun graph-direction-from-text (text)
   (let ((s (string-upcase (trim-text text))))

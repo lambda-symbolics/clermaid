@@ -62,11 +62,13 @@ apply even when nodes connect across group boundaries. Each node belongs to
 the first subgraph in which it occurs. Later references do not move it.
 Group IDs share the node namespace and must be unique.
 
-Edges can connect nodes across groups, whole groups, and a group and its
-own descendants. Frames permit perpendicular edge crossings; labels and
-node boxes are protected. Each scope is laid out with child groups as whole
-rectangles, so sibling frames and their contents do not overlap. Edge labels
-use the same adjacent-label or legend placement as other graph edges.
+Edges can connect nodes across groups and whole groups in separate branches.
+An edge between a group and one of its own descendants (a node or a nested
+group) signals =invalid-diagram= during parsing, in either direction.
+Frames permit perpendicular edge crossings; labels and node boxes are protected.
+Each scope is laid out with child groups as whole rectangles, so sibling frames
+and their contents do not overlap. Edge labels use the same adjacent-label or
+legend placement as other graph edges.
 Empty groups are supported.
 
 #+begin_src mermaid

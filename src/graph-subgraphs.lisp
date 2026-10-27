@@ -1,5 +1,18 @@
 (in-package #:clermaid)
 
+(defun graph--validate-subgraph-edges (diagram)
+  "Reject edges between a group and any of its descendants before layout."
+  (flet ((contains-p (group node)
+           (and (typep group 'graph-subgraph)
+                (loop for parent = (graph-node-parent node) then (graph-node-parent parent)
+                      while parent thereis (eq parent group)))))
+    (dolist (edge (graph-edges diagram))
+      (let ((from (graph-edge-from edge)) (to (graph-edge-to edge)))
+        (when (or (contains-p from to) (contains-p to from))
+          (graph-fail 'invalid-diagram
+                      "Edges between a subgraph and its descendants are not supported.")))))
+  diagram)
+
 (defun graph-flow (source family)
   "Parse balanced subgraph scopes before resolving node and group endpoints."
   (let* ((statements (graph-statements source))
@@ -41,7 +54,8 @@
            (setf (graph-subgraph-direction (first stack)) (graph-direction-from-text value))))
         (t (push (cons (first stack) statement) body))))
     (when stack (graph-fail 'invalid-diagram "Unclosed subgraph."))
-    (graph-flow-flat (cons (first statements) (nreverse body)) family (nreverse groups))))
+    (graph--validate-subgraph-edges
+     (graph-flow-flat (cons (first statements) (nreverse body)) family (nreverse groups)))))
 
 (defun graph--scope-child (node parent)
   "Return the direct child of PARENT that contains NODE, or NIL outside it."

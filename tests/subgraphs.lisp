@@ -91,6 +91,33 @@
         (let ((diagram (parse "graph TD" (format nil "subgraph ~a" title) "A" "end")))
           (check (= (length (graph-nodes diagram)) 2))
           (check (consp (diagram-render diagram)))))
+      (let* ((diagram (parse "flowchart TD" (format nil "subgraph~cG[Tabbed group]" #\Tab)
+                             (format nil "direction~cLR" #\Tab) "A-->B" "end"))
+             (group (node diagram "G")))
+        (check (typep group 'graph-subgraph))
+        (check (string= (graph-node-label group) "Tabbed group"))
+        (check (eq (graph-node-parent (node diagram "A")) group))
+        (check (eq (graph-subgraph-direction group) :lr))
+        (check (some (lambda (row) (search "Tabbed group" row))
+                     (diagram-render diagram :width 200))))
+      ;; Parsing must reject a group endpoint connected to any descendant.
+      ;; Also check group endpoints referenced before their declarations.
+      (dolist (descendant '("A" "H" "I" "B"))
+        (dolist (reverse-p '(nil t))
+          (dolist (forward-p (if (member descendant '("H" "I") :test #'string=) '(nil t) '(nil)))
+            (let* ((edge (if reverse-p (format nil "~a-->G" descendant)
+                            (format nil "G-->~a" descendant)))
+                   (scopes '("subgraph G" "A" "subgraph H" "subgraph I" "B"
+                             "end" "end" "end"))
+                   (lines (if forward-p (cons edge scopes) (append scopes (list edge)))))
+              (check (signals-p 'invalid-diagram
+                                (lambda () (apply #'parse "flowchart TD" lines))))))))
+      ;; Group endpoints in separate branches remain routable in both directions.
+      (dolist (edge '("G-->H" "H-->G" "G-->J" "J-->G" "G-->B" "B-->G"))
+        (let ((diagram (parse "flowchart TD" "subgraph G" "A" "end"
+                              "subgraph H" "subgraph J" "B" "end" "end" edge)))
+          (dolist (unicode '(t nil))
+            (check (consp (diagram-render diagram :width 200 :unicode unicode))))))
       (dolist (lines '(("end") ("subgraph G" "A") ("subgraph" "end")
                        ("subgraph G" "end" "subgraph G" "end")
                        ("subgraph G" "direction" "end")
@@ -114,7 +141,6 @@
           (check (signals-p 'resource-limit-exceeded (lambda () (diagram-render diagram))))))
       (dolist (lines '(("subgraph Empty" "end")
                        ("X-->G" "subgraph G" "A" "end")
-                       ("subgraph G" "A-->G" "G-->A" "end")
                        ("subgraph G" "A-->A" "end" "G-->G")
                        ("subgraph A" "X" "end" "subgraph B" "Y" "end" "X-->Y" "Y-->X")))
         (check (consp (diagram-render (apply #'parse "flowchart TD" lines) :width 200)))))
