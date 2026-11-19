@@ -1,5 +1,5 @@
 (asdf:defsystem #:clermaid
-  :description "Bounded Mermaid diagrams as terminal text."
+  :description "Library for rendering Mermaid diagrams as terminal text."
   :author      "Lambda Symbolics OÜ"
   :license     "COLL-Attribution"
   :version     "0.1.0"
